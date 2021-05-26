@@ -27,7 +27,7 @@ export const packageJsonEq: Eq<PackageJson> = {
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
-    T.fromEither(() => PackageJsonC.decode(JSON.parse(contents))),
+    T.fromEither<t.Errors, PackageJson>(() => PackageJsonC.decode(JSON.parse(contents))),
     T.mapError((errs) => ({
       _tag: literal("ParsePackageJsonError"),
       //errors: errs,

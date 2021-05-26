@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as A from "@effect-ts/core/Array";
 import * as NEA from "@effect-ts/core/NonEmptyArray";
 import * as O from "@effect-ts/core/Option";
@@ -11,32 +12,44 @@ import { PackageJson } from "../core/PackageJson";
 import { mkPackagesState } from "../core/packagesState";
 import { initialize } from "../core/intialize";
 import { PackageList } from "./PackageList";
+import { hideBin } from 'yargs/helpers'
+import { ADT } from "ts-adt";
+import { BuildCommand } from "../commands/build";
+import { TreeCommand } from "../commands/tree";
+import { StartCommand } from "../commands/start";
+import yargs from "yargs";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
-const renderApp = (
-  apps: ReadonlyArray<{
-    package: PackageJson;
-    localDeps: ReadonlyArray<PackageJson>;
-  }>,
-  appState: ReturnType<typeof mkPackagesState>,
-  rootApp: PackageJson
-) =>
-  T.effectAsync<unknown, never, number>((cb) => {
-    const exit = () => cb(T.succeed(0));
-    render(
-      React.createElement(PackageList, {
-        workspaces: apps,
-        exit,
-        packagesState: appState,
-        rootApp,
-      })
-    );
-  });
 
 pipe(
-  T.do,
-  T.chain(() => initialize),
+  initialize,
+  T.chain(context => {
+
+    const yargParsedArgs = yargs(hideBin(process.argv))
+      .command('help', 'view this help message').argv
+
+    return pipe(
+      TreeCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
+      T.chain(TreeCommand.executeCommand(context)),
+      T.orElse(() => 
+        pipe(
+          StartCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
+          T.chain(StartCommand.executeCommand(context)),
+        )
+      ),
+      T.orElse(() => 
+        pipe(
+          BuildCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
+          T.chain(BuildCommand.executeCommand(context)),
+        )
+      )
+    )
+  })
+)
+
+pipe(
+  initialize,
   T.bind("appPackageJson", (a) =>
     pipe(
       a.workspaces,
@@ -74,12 +87,12 @@ pipe(
                           console.error(printCircular(c.context));
                         },
                         ParseArgsError: (pae) => {
-                          console.log(pae.arg)
+                          console.log('Error parsing argument:', pae.arg)
                           console.log(pae.args)
                         }
                       },
                       (otherwise) => {
-                        console.log(otherwise)
+                        console.log('ERROR', otherwise)
                       }
                     )
                   ),
