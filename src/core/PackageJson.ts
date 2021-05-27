@@ -4,25 +4,32 @@ import * as t from "io-ts";
 import * as T from "@effect-ts/core/Effect";
 import * as E from "fp-ts/lib/Either";
 import reporter from "io-ts-reporters";
+import { WorkspacesC } from "./Workspaces";
+
+
 
 export const PackageJsonC = t.intersection([
   t.type({
     name: t.string,
-    version: t.string,
   }),
   t.partial({
+    version: t.string,
     dependencies: t.record(t.string, t.string),
-    workspaces: t.array(t.string),
+    workspaces: WorkspacesC,
     scripts: t.record(t.string, t.string),
     src: t.string,
   }),
 ]);
 
+
 export type PackageJsonT = t.TypeOf<typeof PackageJsonC>;
 export interface PackageJson extends PackageJsonT {}
 
 export const packageJsonEq: Eq<PackageJson> = {
-  equals: (a, b) => a.name === b.name && a.version === b.version,
+  equals: (a, b) => {
+    console.log('comparing: ', a, b)
+    return a.name === b.name //&& a.version === b.version,
+  }
 };
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>

@@ -14,10 +14,11 @@ import * as R from "@effect-ts/core/Record";
 import * as A from "@effect-ts/core/Array";
 import { snd } from "fp-ts/lib/Tuple";
 import { AppWithDeps, findDeps } from "./AppWithDeps";
+import { workspaceGlobs } from "./Workspaces";
 
 const packageIsAssignableTo = (name: string) => (version: string) => (
   p: PackageJson
-) => name === p.name && version === p.version;
+) => name === p.name //&& version === p.version;
 
 const resolveProject = (dir: string) =>
   pipe(path.join(dir, "package.json"), (pJson) =>
@@ -41,15 +42,12 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
     O.fromNullable(root.workspaces),
     T.fromOption,
     T.mapError(() => ({ _tag: "NoWorkspaces" as const, dir, root })),
-    T.map(w => ({workspacesGlob: w})),
-    T.bind('workspaceDirs', ({workspacesGlob}) => 
-      pipe(workspacesGlob, A.map(s => s.endsWith("/") ? s : `${s}/`), T.forEach(FS.glob))
+    T.map(w => ({workspaceGlobs: workspaceGlobs(w)})),
+    T.bind('workspaceDirs', ({workspaceGlobs}) => 
+      pipe(workspaceGlobs, A.map(s => s.endsWith("/") ? s : `${s}/`), T.forEach(FS.glob))
     ),
     T.bind('packages', ({workspaceDirs}) => 
-      pipe(workspaceDirs, A.chain(identity), hmm => {
-        console.log('parsing projects:', hmm)
-        return hmm
-      },
+      pipe(workspaceDirs, A.chain(identity),
       T.forEach(parseProject))
     ),
     T.map(({ packages }) =>

@@ -21,90 +21,91 @@ import yargs from "yargs";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
+const Commands = [
+  TreeCommand,
+  StartCommand,
+  BuildCommand
+]
 
 pipe(
   initialize,
   T.chain(context => {
 
-    const yargParsedArgs = yargs(hideBin(process.argv))
-      .command('help', 'view this help message').argv
+    const yargParsedArgs = pipe(
+      Commands,
+      A.reduce(yargs(hideBin(process.argv)), (y, c) => c.addCommand(y))
+    ).command('help', 'view this help message').scriptName('gbt')
+
+    const parsedArgsV = yargParsedArgs.argv
 
     return pipe(
-      TreeCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
+      TreeCommand.parseArgs(parsedArgsV, parsedArgsV._),
       T.chain(TreeCommand.executeCommand(context)),
-      T.orElse(() => 
-        pipe(
-          StartCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
-          T.chain(StartCommand.executeCommand(context)),
-        )
-      ),
-      T.orElse(() => 
-        pipe(
-          BuildCommand.parseArgs(yargParsedArgs, yargParsedArgs._),
-          T.chain(BuildCommand.executeCommand(context)),
-        )
-      )
+      // T.orElse(() => 
+      //   pipe(
+      //     StartCommand.parseArgs(parsedArgsV, parsedArgsV._),
+      //     T.chain(StartCommand.executeCommand(context)),
+      //   )
+      // ),
+      // T.orElse(() => 
+      //   pipe(
+      //     BuildCommand.parseArgs(parsedArgsV, parsedArgsV._),
+      //     T.chain(BuildCommand.executeCommand(context)),
+      //   )
+      // ),
+      // T.orElse(() => T.effectTotal(() => {
+      //   yargParsedArgs.showHelp()
+      // }))
     )
-  })
+  }),
+  e => T.run(e, matchTag({
+    Failure: err => {
+      console.log('Error', JSON.stringify(err, null, 2))
+    },
+    Success: (v) => {
+      console.log('Done in 0.0s', v.value)
+    }
+  }))
 )
 
-pipe(
-  initialize,
-  T.bind("appPackageJson", (a) =>
-    pipe(
-      a.workspaces,
-      A.findFirst((w) => w.package.name === a.app),
-      fromOption,
-      T.mapError(() => ({
-        _tag: literal("InitialAppNotFound"),
-        appName: a.app,
-      }))
-    )
-  ),
-  T.bind("reactApp", ({ workspaces, rootApp }) => {
-    return renderApp(
-      workspaces,
-      mkPackagesState(workspaces, rootApp),
-      rootApp.package
-    );
-  }),
-  (e) =>
-    T.run(
-      e,
-      matchTag({
-        Failure: (err) => [
-          pipe(
-            err.cause,
-            matchTagP(
-              {
-                Fail: (f) =>
-                  pipe(
-                    f.value,
-                    matchTagP(
-                      {
-                        CircularDepFound: (c) => {
-                          console.error("Circular dep found:");
-                          console.error(printCircular(c.context));
-                        },
-                        ParseArgsError: (pae) => {
-                          console.log('Error parsing argument:', pae.arg)
-                          console.log(pae.args)
-                        }
-                      },
-                      (otherwise) => {
-                        console.log('ERROR', otherwise)
-                      }
-                    )
-                  ),
-              },
-              () => {}
-            )
-          ),
-        ],
-        Success: () => {},
-      })
-    )
-);
+// pipe(
+//   (e) =>
+//     T.run(
+//       e,
+//       matchTag({
+//         Failure: (err) => [
+//           pipe(
+//             err.cause,
+//             matchTagP(
+//               {
+//                 Fail: (f) =>
+//                   pipe(
+//                     f.value,
+//                     matchTagP(
+//                       {
+//                         CircularDepFound: (c) => {
+//                           console.error("Circular dep found:");
+//                           console.error(printCircular(c.context));
+//                         },
+//                         ParseArgsError: (pae) => {
+//                           console.log('Error parsing argument:', pae.arg)
+//                           console.log(pae.args)
+//                         }
+//                       },
+//                       (otherwise) => {
+//                         console.log('ERROR', otherwise)
+//                       }
+//                     )
+//                   ),
+//               },
+//               () => {}
+//             )
+//           ),
+//         ],
+//         Success: () => {},
+//       })
+//     )
+// );
 
 const printCircular = (deps: readonly PackageJson[]): string => {
   const depsWithoutRecursive = pipe(deps, A.takeLeft(deps.length - 1));
