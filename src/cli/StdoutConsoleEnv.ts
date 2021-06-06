@@ -50,6 +50,10 @@ export const toGradient = (str: string) => {
   return gradients[Math.floor(number % gradients.length)];
 };
 
+export const gradientForStr = (s: string) => {
+  return gradient[toGradient(s)];
+}
+
 const gradients = [
   "fruit",
   "atlas",

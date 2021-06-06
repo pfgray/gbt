@@ -13,11 +13,15 @@ const pathNotFound = (path: string) => ({
 });
 
 const readFile = (path: string) =>
-  T.effectAsync<unknown, { _tag: "ReadError"; path: string }, string>(cb =>
+  T.effectAsync<unknown, { _tag: "ReadError" | "PathNotFound"; path: string }, string>(cb =>
     fs.readFile(path, {encoding: 'utf-8'}, (err, s) => {
-      err
-      ? cb(T.fail({ _tag: literal("ReadError"), path }))
-      : cb(T.succeed(s));
+      if(err && err.code === 'ENOENT') {
+        cb(T.fail(pathNotFound(path))) 
+      } else if(err) {
+        cb(T.fail({ _tag: literal("ReadError"), path }))
+      } else {
+        cb(T.succeed(s))
+      }
     })
   )
 

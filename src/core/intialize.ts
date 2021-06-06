@@ -4,10 +4,7 @@ import * as O from "@effect-ts/core/Option";
 import yargs from "yargs/yargs";
 import { FS } from "../system/FS";
 import { identity, literal, pipe, tuple } from "@effect-ts/core/Function";
-import {
-  PackageJson,
-  parsePackageJson,
-} from "./PackageJson";
+import { PackageJson, parsePackageJson } from "./PackageJson";
 import { Refinement } from "@effect-ts/core/Function";
 import * as ROA from "fp-ts/lib/ReadonlyArray";
 import * as R from "@effect-ts/core/Record";
@@ -16,9 +13,16 @@ import { snd } from "fp-ts/lib/Tuple";
 import { AppWithDeps, findDeps } from "./AppWithDeps";
 import { workspaceGlobs } from "./Workspaces";
 
-const packageIsAssignableTo = (name: string) => (version: string) => (
-  p: PackageJson
-) => name === p.name //&& version === p.version;
+const tap =
+  (s: string) =>
+  <A>(a: A): A => {
+    console.log(s, a);
+    return a;
+  };
+
+const packageIsAssignableTo =
+  (name: string) => (version: string) => (p: PackageJson) =>
+    name === p.name; //&& version === p.version;
 
 const resolveProject = (dir: string) =>
   pipe(path.join(dir, "package.json"), (pJson) =>
@@ -30,7 +34,13 @@ const parseProject = (dir: string) =>
     FS.lstat(dir),
     T.chain((stat) => (stat.isDirectory() ? T.succeed(stat) : T.fail(0))),
     T.mapError(() => ({ _tag: "PackageIsNotDir" as const, dir })),
-    T.chain((stat) => resolveProject(dir)),
+    T.chain((stat) =>
+      pipe(
+        resolveProject(dir),
+        T.map(O.some),
+        T.orElse(() => T.succeed(O.none)),
+      )
+    ),
     T.map((p) => tuple(dir, p))
   );
 
@@ -42,14 +52,29 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
     O.fromNullable(root.workspaces),
     T.fromOption,
     T.mapError(() => ({ _tag: "NoWorkspaces" as const, dir, root })),
-    T.map(w => ({workspaceGlobs: workspaceGlobs(w)})),
-    T.bind('workspaceDirs', ({workspaceGlobs}) => 
-      pipe(workspaceGlobs, A.map(s => s.endsWith("/") ? s : `${s}/`), T.forEach(FS.glob))
+    T.map((w) => ({ workspaceGlobs: workspaceGlobs(w) })),
+    T.bind("workspaceDirs", ({ workspaceGlobs }) =>
+      pipe(
+        workspaceGlobs,
+        A.map((s) => (s.endsWith("/") ? s : `${s}/`)),
+        T.forEach(FS.glob)
+      )
     ),
-    T.bind('packages', ({workspaceDirs}) => 
-      pipe(workspaceDirs, A.chain(identity),
-      T.forEach(parseProject))
-    ),
+    T.bind("packages", ({ workspaceDirs }) => {
+      return pipe(
+        workspaceDirs,
+        A.chain(identity),
+        T.forEach(parseProject),
+        T.map(
+          A.filterMap(([p, pkgOp]) =>
+            pipe(
+              pkgOp,
+              O.map((pkg) => tuple(p, pkg))
+            )
+          )
+        )
+      );
+    }),
     T.map(({ packages }) =>
       pipe(
         packages,
@@ -76,20 +101,11 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
         })
       )
     )
-    // T.bind('workspaceDirs', ({workspaceMatches}) => 
-    //   pipe(
-    //     workspaceMatches,
-    //     A.chain(identity),
-    //     A.map([])
-    //     T.forEach(FS.lstat),
-    //     T.map(A.filter())
-    //   )
-    // ),
   );
 
 export const initialize = pipe(
   T.succeed({}),
-  T.bind("rootProject", ({ }) =>
+  T.bind("rootProject", ({}) =>
     T.structPar({
       root: resolveProject(process.cwd()),
     })

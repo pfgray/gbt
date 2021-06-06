@@ -11,6 +11,7 @@ import { toGradient, StdoutConsoleEnv } from "./StdoutConsoleEnv";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
 
 import Spinner from "ink-spinner";
+import { ChokidarWatchEnv } from "../system/WatchEnv";
 
 type PackageListProps = {
   workspaces: Array<{
@@ -48,6 +49,7 @@ export const PackageList = (props: PackageListProps) => {
         })
       ),
       T.provide(StdoutConsoleEnv),
+      T.provide(ChokidarWatchEnv),
       T.run
     );
   }, []);

@@ -9,9 +9,9 @@ export const PS = {
   spawn: (context: string) => (command: string) => (args: string[]) =>
     pipe(
       T.environment<ConsoleEnv>(),
-      T.tap(({ console }) =>
+      T.tap((t) =>
         T.effectTotal(() => {
-          console.log(context)(command + " " + args.join(" "));
+          t.console.log(context)(command + " " + args.join(" "));
         })
       ),
       T.chain(({ console }) =>

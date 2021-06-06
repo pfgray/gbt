@@ -591,6 +591,11 @@ monocle-ts@^2.3.9:
   resolved "https://registry.yarnpkg.com/monocle-ts/-/monocle-ts-2.3.9.tgz#037d8a14f72dfd5ce6928c8730de1f0e504da94d"
   integrity sha512-X5ppMOPAQV/BeENhPpEI0hJelXMoNVtHlTVk89ugZL7ZvK6JtBDFW/762aq1MOzCCaBAFlxGz1Wmxa0DW7tshQ==
 
+node-graphviz@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/node-graphviz/-/node-graphviz-0.1.0.tgz#540093aa91ce9b0de13fd6c99ae4d369d9fa28e5"
+  integrity sha512-RhRb+HXYp8ZVVlsxW1/I61taWuQSS6x3o9GanZOdiMyP4TFaBHwfcn221/dZtmI4wdBgu/q7/Zt4jMgi3XQiGA==
+
 normalize-path@^3.0.0, normalize-path@~3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/normalize-path/-/normalize-path-3.0.0.tgz#0dcd69ff23a1c9b11fd0978316644a0388216a65"

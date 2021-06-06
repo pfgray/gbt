@@ -14,6 +14,8 @@ import * as E from "@effect-ts/core/Either";
 import * as path from "path";
 import { AppWithDeps, findDeps, findPackage, findParents } from "./AppWithDeps";
 import { WatchE } from "../system/WatchEnv";
+import { trace } from "./debug";
+import { StdoutConsoleEnv } from "../cli/StdoutConsoleEnv";
 
 export type AppState =
   | "starting"
@@ -226,7 +228,12 @@ export const mkPackagesState = (
                 O.fold(
                   () =>
                     pipe(
-                      WatchE.dir(watchDir, () => buildPackage(d.package)),
+                      WatchE.dir(watchDir, () => {
+                        console.log('source change detected in', watchDir)
+                        console.log('rebuilding', d.package.name)
+                        return pipe(buildPackage(d.package), T.provide(StdoutConsoleEnv))
+                      }),
+                      trace('watching dir:', watchDir),
                       T.fork,
                       T.chain((f) =>
                         T.effectTotal(() => {

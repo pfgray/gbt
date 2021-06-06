@@ -18,14 +18,39 @@ import { BuildCommand } from "../commands/build";
 import { TreeCommand } from "../commands/tree";
 import { StartCommand } from "../commands/start";
 import yargs from "yargs";
+import { ListCommand } from "../commands/list";
+import { Command } from "../commands/Command";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
 const Commands = [
   TreeCommand,
   StartCommand,
-  BuildCommand
+  BuildCommand,
+  ListCommand
 ]
+
+const handleCommand = (context: {
+  rootProject: {
+      root: PackageJson;
+  };
+} & {
+  workspaces: A.Array<{
+      dir: string;
+      package: PackageJson;
+      localDeps: A.Array<PackageJson>;
+  }>;
+}, argv: Record<string, unknown>, rawArgs: (string | number)[]) => <K extends string, T extends object>(c: Command<K, T>) =>
+  pipe(
+    c.parseArgs(argv, rawArgs),
+    T.chain(args => pipe(
+      args,
+      O.fold(
+        () => T.succeed({}),
+        c.executeCommand(context)
+      )
+    )
+  ))
 
 pipe(
   initialize,
@@ -38,24 +63,12 @@ pipe(
 
     const parsedArgsV = yargParsedArgs.argv
 
+    // for each command,
+    //    attempt to parseArgs
+
     return pipe(
-      TreeCommand.parseArgs(parsedArgsV, parsedArgsV._),
-      T.chain(TreeCommand.executeCommand(context)),
-      // T.orElse(() => 
-      //   pipe(
-      //     StartCommand.parseArgs(parsedArgsV, parsedArgsV._),
-      //     T.chain(StartCommand.executeCommand(context)),
-      //   )
-      // ),
-      // T.orElse(() => 
-      //   pipe(
-      //     BuildCommand.parseArgs(parsedArgsV, parsedArgsV._),
-      //     T.chain(BuildCommand.executeCommand(context)),
-      //   )
-      // ),
-      // T.orElse(() => T.effectTotal(() => {
-      //   yargParsedArgs.showHelp()
-      // }))
+      Commands,
+      T.forEach(handleCommand(context, parsedArgsV, parsedArgsV._)),
     )
   }),
   e => T.run(e, matchTag({

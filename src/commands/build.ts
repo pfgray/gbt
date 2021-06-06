@@ -13,6 +13,7 @@ export const BuildCommand: Command<'build', {package: string}> = {
       T.fromOption,
       T.chain(command => command === 'build' ? T.fail({}) : T.succeed({_type: 'build' as const})),
       T.bind('package', () => pipe(argv.package, O.fromNullable, O.chain(u => typeof u === 'string' ? O.some(u) : O.none), T.fromOption)),
+      T.option
     ),
   executeCommand: () => () => T.effectTotal(() => {
     console.log('TODO: implement build');

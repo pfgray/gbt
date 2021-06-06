@@ -9,6 +9,7 @@ import React from "react";
 import { PackageList } from "../cli/PackageList";
 import { PackageJson } from "../core/PackageJson";
 import { mkPackagesState } from "../core/packagesState";
+import { traceN } from "../core/debug";
 
 export const StartCommand: Command<"start", { package: string , watchDeps: boolean}> = {
   addCommand: (yargs) =>
@@ -26,9 +27,10 @@ export const StartCommand: Command<"start", { package: string , watchDeps: boole
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain(command => command === 'start' ? T.fail({}) : T.succeed({_type: 'start' as const})),
+      T.chain(command => command === 'start' ? T.succeed({_type: 'start' as const}) : T.fail({})),
       T.bind('package', () => pipe(argv.package, O.fromNullable, O.chain(u => typeof u === 'string' ? O.some(u) : O.none), T.fromOption)),
-      T.bind('watchDeps', () => pipe(argv.watchDependencies, O.fromNullable, O.chain(u => typeof u === 'boolean' ? O.some(u) : O.none), T.fromOption))
+      T.bind('watchDeps', () => pipe(argv.watchDependencies, O.fromNullable, O.chain(u => typeof u === 'boolean' ? O.some(u) : O.none), T.fromOption)),
+      T.option
     ),
   executeCommand: context => (args) =>
     pipe(

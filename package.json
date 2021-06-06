@@ -36,6 +36,7 @@
     "io-ts": "^2.2.13",
     "io-ts-reporters": "^1.2.2",
     "monocle-ts": "^2.3.9",
+    "node-graphviz": "^0.1.0",
     "react": "^17.0.1",
     "tree-kill": "^1.2.2",
     "ts-adt": "^2.0.2",
