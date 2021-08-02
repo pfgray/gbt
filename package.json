@@ -1,6 +1,6 @@
 {
-  "name": "@pfgray/gbt",
-  "version": "1.0.0",
+  "name": "gbt",
+  "version": "0.0.2",
   "main": "index.js",
   "license": "MIT",
   "bin": {
