@@ -81,45 +81,6 @@ pipe(
   }))
 )
 
-// pipe(
-//   (e) =>
-//     T.run(
-//       e,
-//       matchTag({
-//         Failure: (err) => [
-//           pipe(
-//             err.cause,
-//             matchTagP(
-//               {
-//                 Fail: (f) =>
-//                   pipe(
-//                     f.value,
-//                     matchTagP(
-//                       {
-//                         CircularDepFound: (c) => {
-//                           console.error("Circular dep found:");
-//                           console.error(printCircular(c.context));
-//                         },
-//                         ParseArgsError: (pae) => {
-//                           console.log('Error parsing argument:', pae.arg)
-//                           console.log(pae.args)
-//                         }
-//                       },
-//                       (otherwise) => {
-//                         console.log('ERROR', otherwise)
-//                       }
-//                     )
-//                   ),
-//               },
-//               () => {}
-//             )
-//           ),
-//         ],
-//         Success: () => {},
-//       })
-//     )
-// );
-
 const printCircular = (deps: readonly PackageJson[]): string => {
   const depsWithoutRecursive = pipe(deps, A.takeLeft(deps.length - 1));
   return pipe(
