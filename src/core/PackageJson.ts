@@ -15,6 +15,8 @@ export const PackageJsonC = t.intersection([
   t.partial({
     version: t.string,
     dependencies: t.record(t.string, t.string),
+    devDependencies: t.record(t.string, t.string),
+    peerDependencies: t.record(t.string, t.string),
     workspaces: WorkspacesC,
     scripts: t.record(t.string, t.string),
     src: t.string,

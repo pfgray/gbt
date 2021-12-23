@@ -1,6 +1,7 @@
 import * as T from "@effect-ts/core/Effect";
 import * as path from "path";
 import * as O from "@effect-ts/core/Option";
+import * as Ass from '@effect-ts/core/Associative';
 import yargs from "yargs/yargs";
 import { FS } from "../system/FS";
 import { identity, literal, pipe, tuple } from "@effect-ts/core/Function";
@@ -83,9 +84,9 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
             dir,
             package: p,
             localDeps: pipe(
-              p.dependencies,
-              O.fromNullable,
-              O.getOrElse<Record<string, string>>(() => ({})),
+              [p.dependencies, p.devDependencies, p.peerDependencies],
+              A.filterMap(O.fromNullable),
+              A.foldMap(R.getIdentity(Ass.first<string>()))(a => a),
               R.filterMapWithIndex((name, version) =>
                 pipe(
                   packages,
