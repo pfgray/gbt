@@ -12,74 +12,94 @@ import { PackageJson } from "../core/PackageJson";
 import { mkPackagesState } from "../core/packagesState";
 import { initialize } from "../core/intialize";
 import { PackageList } from "./PackageList";
-import { hideBin } from 'yargs/helpers'
+import { hideBin } from "yargs/helpers";
 import { ADT } from "ts-adt";
 import { BuildCommand } from "../commands/build";
 import { TreeCommand } from "../commands/tree";
 import { StartCommand } from "../commands/start";
 import yargs from "yargs";
 import { ListCommand } from "../commands/list";
+import { PackageDirsCommand } from "../commands/packageDirs";
+import { VersionCommand } from "../commands/version";
 import { Command } from "../commands/Command";
+import { StatsCommand } from "../commands/stats";
+import { FindCommand } from "../commands/find";
+import { AppWithDeps } from "../core/AppWithDeps";
+import { DetectCyclesCommand } from "../commands/detectCycles";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
 const Commands = [
-  TreeCommand,
   StartCommand,
   BuildCommand,
-  ListCommand
-]
+  ListCommand,
+  PackageDirsCommand,
+  StatsCommand,
+  FindCommand,
+  TreeCommand,
+  DetectCyclesCommand,
+  //VersionCommand,
+];
 
-const handleCommand = (context: {
-  rootProject: {
-      root: PackageJson;
-  };
-} & {
-  workspaces: A.Array<{
-      dir: string;
-      package: PackageJson;
-      localDeps: A.Array<PackageJson>;
-  }>;
-}, argv: Record<string, unknown>, rawArgs: (string | number)[]) => <K extends string, T extends object>(c: Command<K, T>) =>
-  pipe(
-    c.parseArgs(argv, rawArgs),
-    T.chain(args => pipe(
-      args,
-      O.fold(
-        () => T.succeed({}),
-        c.executeCommand(context)
+const handleCommand =
+  (
+    context: {
+      rootProject: {
+        root: PackageJson;
+      };
+    } & {
+      workspaces: A.Array<AppWithDeps>;
+    },
+    argv: Record<string, unknown>,
+    rawArgs: (string | number)[]
+  ) =>
+  <K extends string, T extends object>(c: Command<K, T>) =>
+    pipe(
+      c.parseArgs(argv, rawArgs),
+      T.chain((args) =>
+        pipe(
+          args,
+          O.fold(() => T.succeed({}), c.executeCommand(context))
+        )
+      ),
+      T.refineOrDie((e) =>
+        O.some({
+          message: `error running command ${c.name}`,
+          cause: e,
+        })
       )
-    )
-  ))
+    );
 
 pipe(
   initialize,
-  T.chain(context => {
-
+  T.chain((context) => {
     const yargParsedArgs = pipe(
       Commands,
       A.reduce(yargs(hideBin(process.argv)), (y, c) => c.addCommand(y))
-    ).command('help', 'view this help message').scriptName('gbt')
+    )
+      .command("help", "view this help message")
+      .scriptName("gbt");
 
-    const parsedArgsV = yargParsedArgs.argv
-
-    // for each command,
-    //    attempt to parseArgs
+    const parsedArgsV = yargParsedArgs.argv;
 
     return pipe(
       Commands,
-      T.forEach(handleCommand(context, parsedArgsV, parsedArgsV._)),
-    )
+      T.forEach(handleCommand(context, parsedArgsV, parsedArgsV._))
+    );
   }),
-  e => T.run(e, matchTag({
-    Failure: err => {
-      console.log('Error', JSON.stringify(err, null, 2))
-    },
-    Success: (v) => {
-      console.log('Done in 0.0s', v.value)
-    }
-  }))
-)
+  (e) =>
+    T.run(
+      e,
+      matchTag({
+        Failure: (err) => {
+          console.error("Error", JSON.stringify(err, null, 2));
+        },
+        Success: (v) => {
+          // console.log("Done in 0.0s", v.value);
+        },
+      })
+    )
+);
 
 const printCircular = (deps: readonly PackageJson[]): string => {
   const depsWithoutRecursive = pipe(deps, A.takeLeft(deps.length - 1));

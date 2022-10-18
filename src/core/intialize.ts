@@ -1,17 +1,17 @@
 import * as T from "@effect-ts/core/Effect";
 import * as path from "path";
 import * as O from "@effect-ts/core/Option";
-import * as Ass from '@effect-ts/core/Associative';
+import * as Ass from "@effect-ts/core/Associative";
 import yargs from "yargs/yargs";
 import { FS } from "../system/FS";
 import { identity, literal, pipe, tuple } from "@effect-ts/core/Function";
-import { PackageJson, parsePackageJson } from "./PackageJson";
+import { PackageJson, packageJsonEqual, parsePackageJson } from "./PackageJson";
 import { Refinement } from "@effect-ts/core/Function";
 import * as ROA from "fp-ts/lib/ReadonlyArray";
 import * as R from "@effect-ts/core/Record";
 import * as A from "@effect-ts/core/Array";
 import { snd } from "fp-ts/lib/Tuple";
-import { AppWithDeps, findDeps } from "./AppWithDeps";
+import { AppWithDeps, findDeps, findPackage } from "./AppWithDeps";
 import { workspaceGlobs } from "./Workspaces";
 
 const tap =
@@ -39,7 +39,7 @@ const parseProject = (dir: string) =>
       pipe(
         resolveProject(dir),
         T.map(O.some),
-        T.orElse(() => T.succeed(O.none)),
+        T.orElse(() => T.succeed(O.none))
       )
     ),
     T.map((p) => tuple(dir, p))
@@ -53,14 +53,16 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
     O.fromNullable(root.workspaces),
     T.fromOption,
     T.mapError(() => ({ _tag: "NoWorkspaces" as const, dir, root })),
-    T.map((w) => ({ workspaceGlobs: workspaceGlobs(w) })),
-    T.bind("workspaceDirs", ({ workspaceGlobs }) =>
-      pipe(
+    T.map((w) => {
+      return { workspaceGlobs: workspaceGlobs(w) };
+    }),
+    T.bind("workspaceDirs", ({ workspaceGlobs }) => {
+      return pipe(
         workspaceGlobs,
         A.map((s) => (s.endsWith("/") ? s : `${s}/`)),
         T.forEach(FS.glob)
-      )
-    ),
+      );
+    }),
     T.bind("packages", ({ workspaceDirs }) => {
       return pipe(
         workspaceDirs,
@@ -86,7 +88,7 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
             localDeps: pipe(
               [p.dependencies, p.devDependencies, p.peerDependencies],
               A.filterMap(O.fromNullable),
-              A.foldMap(R.getIdentity(Ass.first<string>()))(a => a),
+              A.foldMap(R.getIdentity(Ass.first<string>()))((a) => a),
               R.filterMapWithIndex((name, version) =>
                 pipe(
                   packages,
@@ -95,11 +97,22 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
                 )
               ),
               R.toArray,
-              A.map(snd),
-              (hmm) => hmm
+              A.map(snd)
             ),
           };
-        })
+        }),
+        (workspaces) => {
+          return workspaces.map((workspace) => {
+            const localDependents = pipe(
+              workspaces,
+              A.filter((w) =>
+                pipe(w.localDeps, A.elem(packageJsonEqual)(workspace.package))
+              ),
+              A.map((w) => w.package)
+            );
+            return { ...workspace, localDependents };
+          });
+        }
       )
     )
   );
@@ -111,12 +124,9 @@ export const initialize = pipe(
       root: resolveProject(process.cwd()),
     })
   ),
-  T.bind("workspaces", ({ rootProject }) =>
-    pipe(
-      findWorkspaces(rootProject.root, path.dirname(process.cwd())),
-      T.map(A.filter((w) => w.package.name !== "server"))
-    )
-  )
+  T.bind("workspaces", ({ rootProject }) => {
+    return pipe(findWorkspaces(rootProject.root, path.dirname(process.cwd())));
+  })
 );
 
 const checkCircular = (options: {

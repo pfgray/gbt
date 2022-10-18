@@ -1,12 +1,10 @@
 import { literal, pipe } from "@effect-ts/core/Function";
-import { Eq } from "fp-ts/lib/Eq";
+import { Equal } from "@effect-ts/core/Equal";
 import * as t from "io-ts";
 import * as T from "@effect-ts/core/Effect";
 import * as E from "fp-ts/lib/Either";
 import reporter from "io-ts-reporters";
 import { WorkspacesC } from "./Workspaces";
-
-
 
 export const PackageJsonC = t.intersection([
   t.type({
@@ -23,20 +21,18 @@ export const PackageJsonC = t.intersection([
   }),
 ]);
 
-
 export type PackageJsonT = t.TypeOf<typeof PackageJsonC>;
 export interface PackageJson extends PackageJsonT {}
 
-export const packageJsonEq: Eq<PackageJson> = {
-  equals: (a, b) => {
-    console.log('comparing: ', a, b)
-    return a.name === b.name //&& a.version === b.version,
-  }
+export const packageJsonEqual: Equal<PackageJson> = {
+  equals: (a) => (b) => a.name === b.name,
 };
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
-    T.fromEither<t.Errors, PackageJson>(() => PackageJsonC.decode(JSON.parse(contents))),
+    T.fromEither<t.Errors, PackageJson>(() =>
+      PackageJsonC.decode(JSON.parse(contents))
+    ),
     T.mapError((errs) => ({
       _tag: literal("ParsePackageJsonError"),
       //errors: errs,
