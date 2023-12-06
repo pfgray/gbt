@@ -16,6 +16,8 @@ import { AppWithDeps, findDeps, findPackage, findParents } from "./AppWithDeps";
 import { WatchE } from "../system/WatchEnv";
 import { trace } from "./debug";
 import { StdoutConsoleEnv } from "../cli/StdoutConsoleEnv";
+import { ConsoleEnv } from "./ConsoleEnv";
+import { LogEnv } from "./LogEnv";
 
 export type AppState =
   | "starting"
@@ -63,7 +65,8 @@ const stateL = (name: string) =>
 
 export const mkPackagesState = (
   workspaces: ReadonlyArray<AppWithDeps>,
-  rootApp: AppWithDeps
+  rootApp: AppWithDeps,
+  logEnv: LogEnv
 ) => {
   const dependencies = pipe(
     findDeps(workspaces, [])(rootApp),
@@ -81,6 +84,12 @@ export const mkPackagesState = (
       state: "inactive",
     })),
   });
+
+  atom.subscribe({
+    next:() => {
+      logEnv.logger.debug('Got new state: ', atom.get())
+    }
+  })
 
   const killApp = (p: PackageJson) => {
     return pipe(
@@ -124,19 +133,25 @@ export const mkPackagesState = (
     );
   };
 
-  const buildPackage = (p: PackageJson): T.UIO<unknown> => {
+  const buildPackage = (options: {buildRoot: boolean}) => (p: PackageJson): T.Effect<ConsoleEnv, never, unknown> => {
     // don't build if a dependency is building
     const depIsBuilding = pipe(
       findPackage(workspaces)(p),
       O.map(findDeps(workspaces, [])),
       O.chain(O.fromEither),
       O.fold(() => [] as Array<AppWithDeps>, identity),
-      A.findFirstMap((d) =>
-        pipe(
+      A.findFirstMap((d) => {
+        const buildingPackage = pipe(
           getFirst(stateL(d.package.name))(atom.get()),
           O.filter((s) => s === "building")
         )
-      ),
+        if(O.isSome(buildingPackage)) {
+          console.log(`not building ${p.name} because ${d.package.name} is building`)
+          console.log(`  ${d.package.name}'s dependents are:`)
+          console.log(`  ${d.localDependents.map(d => d.name).join(', ')}`)
+        }
+        return buildingPackage
+        }),
       O.isSome
     );
     return depIsBuilding
@@ -178,8 +193,10 @@ export const mkPackagesState = (
                   pipe(
                     T.fromEither(() => findParents(workspaces, [])(pkg)),
                     T.map(A.map((p) => p.package)),
-                    T.map(A.filter((p) => p.name !== rootApp.package.name)),
-                    T.chain(T.forEach(buildPackage)),
+                    T.map(A.filter((p) => 
+                       options.buildRoot || p.name !== rootApp.package.name
+                    )),
+                    T.chain(T.forEach(buildPackage(options))),
                     T.orElse(() => T.succeed(0))
                   )
                 )
@@ -231,7 +248,7 @@ export const mkPackagesState = (
                       WatchE.dir(watchDir, () => {
                         console.log('source change detected in', watchDir)
                         console.log('rebuilding', d.package.name)
-                        return pipe(buildPackage(d.package), T.provide(StdoutConsoleEnv))
+                        return pipe(buildPackage({buildRoot: false})(d.package), T.provide(StdoutConsoleEnv))
                       }),
                       trace('watching dir:', watchDir),
                       T.fork,
@@ -258,6 +275,7 @@ export const mkPackagesState = (
   return {
     atom,
     killApp,
+    buildPackage,
     runCommandInApp,
     startApp,
   };

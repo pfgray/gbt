@@ -2,6 +2,9 @@
 import * as T from "@effect-ts/core/Effect";
 import { pipe } from "@effect-ts/core/Function";
 
+/**
+ * An environment for printing things to the application view
+ */
 export interface ConsoleEnv {
   console: {
     log: (context: string) => (msg: string) => void;

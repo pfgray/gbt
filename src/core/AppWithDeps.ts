@@ -2,7 +2,7 @@ import { identity, literal, pipe } from "@effect-ts/core/Function";
 import * as O from "@effect-ts/core/Option";
 import * as E from "@effect-ts/core/Either";
 import * as A from "@effect-ts/core/Array";
-import { PackageJson } from "./PackageJson";
+import { PackageJson, packageJsonEqual } from "./PackageJson";
 import {
   Ord,
   fromCompare,
@@ -13,6 +13,7 @@ import {
   ordString,
   OrdURI,
 } from "@effect-ts/core/Ord";
+import { Equal } from "@effect-ts/system/Equal";
 
 export type AppWithDeps = {
   dir: string;
@@ -91,9 +92,13 @@ export const findParents =
 
 export const findPackage =
   (allPackages: ReadonlyArray<AppWithDeps>) => (p: PackageJson) =>
+    findPackageByName(allPackages)(p.name)
+
+export const findPackageByName =
+  (allPackages: ReadonlyArray<AppWithDeps>) => (name: string) =>
     pipe(
       allPackages,
-      A.findFirst((w) => w.package.name === p.name)
+      A.findFirst((w) => w.package.name === name)
     );
 
 export const appWithDepsLocalDepsOrdering = pipe(
@@ -123,6 +128,10 @@ export const appWithDepsDepRatioOrdering = pipe(
   )
   // dual
 );
+
+export const appWithDepsEqual: Equal<AppWithDeps> = {
+  equals: (a) => (b) => a.package.name === b.package.name,
+};
 
 export const appWithDepsPainfulOrdering = getAssociative<AppWithDeps>().combine(
   appWithDepsDepRatioOrdering
