@@ -1,10 +1,10 @@
-import { pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { packageJsonEqual } from "../core/PackageJson";
-import { Ordering } from "@effect-ts/core/Ordering";
+import { Ordering } from "effect/Ordering";
 import {
   AppWithDeps,
   appWithDepsDepRatioOrdering,
@@ -20,7 +20,7 @@ export const StatsCommand: Command<"stats", {}> = {
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "stats"
           ? T.succeed(O.some({ _type: "stats" as const }))
           : T.succeed(O.none)

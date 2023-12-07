@@ -1,16 +1,16 @@
-import * as T from "@effect-ts/core/Effect";
-import * as F from "@effect-ts/system/Fiber";
-import { identity, pipe } from "@effect-ts/core/Function";
-import * as O from "@effect-ts/core/Option";
-import { Fiber } from "@effect-ts/system/Fiber";
+import * as T from "effect/Effect";
+import * as F from "effect/Fiber";
+import { identity, pipe } from "effect/Function";
+import * as O from "effect/Option";
+import { Fiber } from "effect/Fiber";
 import { newAtom } from "frp-ts/lib/atom";
 import { newCounterClock } from "frp-ts/lib/clock";
 import { runScript } from "./scripts";
 import { PackageJson } from "./PackageJson";
 import { Lens, Prism, fromTraversable, Traversal } from "monocle-ts";
-import { array } from "fp-ts/lib/Array";
-import * as A from "@effect-ts/core/Array";
-import * as E from "@effect-ts/core/Either";
+import { array } from "effect/ReadonlyArray";
+import * as A from "effect/ReadonlyArray";
+import * as E from "effect/Either";
 import * as path from "path";
 import { AppWithDeps, findDeps, findPackage, findParents } from "./AppWithDeps";
 import { WatchE } from "../system/WatchEnv";
@@ -70,7 +70,10 @@ export const mkPackagesState = (
 ) => {
   const dependencies = pipe(
     findDeps(workspaces, [])(rootApp),
-    E.fold(() => [] as Array<AppWithDeps>, identity)
+    E.match({
+      onLeft: () => [] as Array<AppWithDeps>,
+      onRight: identity
+    })
   );
 
   const atom = newAtom({ clock: newCounterClock() })<PackagesState>({
@@ -94,6 +97,7 @@ export const mkPackagesState = (
   const killApp = (p: PackageJson) => {
     return pipe(
       atom.get(),
+      
       getFirst(getAppTraversal(p.name)),
       O.fold(
         () => T.succeed(0),
@@ -103,7 +107,7 @@ export const mkPackagesState = (
             T.forEachPar(O.fold(() => T.succeed(0 as unknown), F.interrupt))
           )
       ),
-      T.chain(() =>
+      T.flatMap(() =>
         T.effectTotal(() => {
           atom.modify(buildPsL(p.name).modify(() => O.none));
         })
@@ -118,14 +122,14 @@ export const mkPackagesState = (
   ) => {
     return pipe(
       runScript(p)(command),
-      T.chain(() =>
+      T.flatMap(() =>
         T.effectTotal(() => {
           atom.modify(buildPsL(p.name).modify(() => O.none));
         })
       ),
-      T.chain(() => onComplete),
+      T.flatMap(() => onComplete),
       T.fork,
-      T.chain((f) =>
+      T.flatMap((f) =>
         T.effectTotal(() => {
           atom.modify(buildPsL(p.name).modify(() => O.some(f)));
         })
@@ -138,7 +142,7 @@ export const mkPackagesState = (
     const depIsBuilding = pipe(
       findPackage(workspaces)(p),
       O.map(findDeps(workspaces, [])),
-      O.chain(O.fromEither),
+      O.flatMap(O.fromEither),
       O.fold(() => [] as Array<AppWithDeps>, identity),
       A.findFirstMap((d) => {
         const buildingPackage = pipe(
@@ -196,7 +200,7 @@ export const mkPackagesState = (
                     T.map(A.filter((p) => 
                        options.buildRoot || p.name !== rootApp.package.name
                     )),
-                    T.chain(T.forEach(buildPackage(options))),
+                    T.flatMap(T.forEach(buildPackage(options))),
                     T.orElse(() => T.succeed(0))
                   )
                 )
@@ -232,7 +236,7 @@ export const mkPackagesState = (
               []
             )(pkg)
           ),
-          T.chain(
+          T.flatMap(
             T.forEach((d) => {
               const src = d.package.src ?? "src";
               const watchDir = path.join(process.cwd(), d.dir, src);
@@ -252,7 +256,7 @@ export const mkPackagesState = (
                       }),
                       trace('watching dir:', watchDir),
                       T.fork,
-                      T.chain((f) =>
+                      T.flatMap((f) =>
                         T.effectTotal(() => {
                           atom.modify((s) =>
                             watchPsL(d.package.name).modify(() => O.some(f))(

@@ -1,14 +1,14 @@
-import { literal, pipe } from "@effect-ts/core/Function";
+import { literal, pipe } from "effect/Function";
 
-import * as O from "@effect-ts/core/Option";
-import * as A from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { FS } from "../system/FS";
 import path from "path";
 import { PackageJson } from "../core/PackageJson";
 import { exec } from "child_process";
-import { onLeft } from "@effect-ts/core/Effect";
+import { onLeft } from "effect/Effect";
 
 const tap =
   (...msg: unknown[]): (<T>(t: T) => T) =>
@@ -33,7 +33,7 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "tree"
           ? T.succeed(
               O.some({
@@ -51,7 +51,7 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
   executeCommand: (context) => (args) =>
     pipe(
       FS.mkdir(path.join(process.cwd(), "report")),
-      T.chain(() => {
+      T.flatMap(() => {
         const graph = pipe(context.workspaces, generateDotGraph(args.focus));
         console.log(graph);
         return T.zip(
@@ -62,7 +62,7 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
         )(
           pipe(
             renderDotGraphSvg(graph),
-            T.chain((svg) =>
+            T.flatMap((svg) =>
               FS.writeFile(
                 path.join(process.cwd(), "report", "workspaces.svg"),
                 svg
@@ -145,9 +145,9 @@ export const renderDotGraphSvg = (graph: string) =>
   >((cb) => {
     exec(`echo '${graph}' | dot -Tsvg`, (error, stdout, stderr) => {
       if (error) {
-        cb(T.fail({ _tag: literal("GraphvizError"), error }));
+        cb(T.fail({ _tag: "GraphvizError"), error }) as const;
       } else if (stderr) {
-        cb(T.fail({ _tag: literal("GraphvizError"), stderr: stderr }));
+        cb(T.fail({ _tag: "GraphvizError"), stderr: stderr }) as const;
       } else {
         cb(T.succeed(stdout));
       }
@@ -163,7 +163,7 @@ export const renderDotGraphSvg = (graph: string) =>
 //         cb(T.succeed(svg));
 //       })
 //       .catch(() => {
-//         cb(T.fail({ _tag: literal("GraphvizError"), graph }));
+//         cb(T.fail({ _tag: "GraphvizError"), graph }) as const;
 //       });
 //   }
 // );

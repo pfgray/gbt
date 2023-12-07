@@ -1,7 +1,7 @@
-import { literal, pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { literal, pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { gradientForStr } from "../cli/StdoutConsoleEnv";
 
@@ -13,7 +13,7 @@ export const ListCommand: Command<"list", {}> = {
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "list"
           ? T.succeed(O.some({ _type: "list" as const }))
           : T.succeed(O.none)

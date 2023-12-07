@@ -1,5 +1,5 @@
-import * as T from "@effect-ts/core/Effect";
-import { pipe } from "@effect-ts/core/Function";
+import * as T from "effect/Effect";
+import { pipe } from "effect/Function";
 import { exec, spawn, ExecException } from "child_process";
 import { ConsoleEnv } from "../core/ConsoleEnv";
 
@@ -14,7 +14,7 @@ export const PS = {
           t.console.log(context)(command + " " + args.join(" "));
         })
       ),
-      T.chain(({ console }) =>
+      T.flatMap(({ console }) =>
         T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
           const child = spawn(command, args);
 

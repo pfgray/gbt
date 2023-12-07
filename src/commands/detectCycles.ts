@@ -1,13 +1,13 @@
-import { flow, pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { flow, pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { AppWithDeps, findPackage } from "../core/AppWithDeps";
 import { PackageJson, packageJsonEqual } from "../core/PackageJson";
-import { fromCompare, ordString } from "@effect-ts/core/Ord";
+import { fromCompare, ordString } from "effect/Ord";
 import { Equal } from "@effect-ts/system/Equal";
-import { eqString } from "@effect-ts/core/Equal";
+import { eqString } from "effect/Equal";
 import { renderDotGraphSvg } from "./tree";
 import { FS } from "../system/FS";
 import path from "path";
@@ -20,7 +20,7 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "detect-cycles"
           ? T.succeed(O.some({ _type: "detect-cycles" as const }))
           : T.succeed(O.none)
@@ -31,7 +31,7 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
     //
     pipe(
       context.workspaces,
-      A.chain(detectCycles(context.workspaces)),
+      A.flatMap(detectCycles(context.workspaces)),
       A.uniq(cycleEq),
 
       A.map(renderGraphCycle),
@@ -45,8 +45,8 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
       T.tap((dot) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.dot"), dot)
       ),
-      T.chain(renderDotGraphSvg),
-      T.chain((svg) =>
+      T.flatMap(renderDotGraphSvg),
+      T.flatMap((svg) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.svg"), svg)
       )
     ),
@@ -75,7 +75,7 @@ const detectCycles =
           ? [formatCycle(seenPackages, workspace.package)]
           : pipe(
               workspace.localDeps,
-              A.chain((p) =>
+              A.flatMap((p) =>
                 pipe(
                   p,
                   findPackage(workspaces),

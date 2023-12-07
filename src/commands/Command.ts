@@ -1,6 +1,6 @@
-import * as T from "@effect-ts/core/Effect";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
+import * as T from "effect/Effect";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
 import yargs from "yargs";
 import { PackageJson } from "../core/PackageJson";
 import { AppWithDeps } from "../core/AppWithDeps";

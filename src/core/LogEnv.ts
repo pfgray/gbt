@@ -1,6 +1,6 @@
 
-import * as T from "@effect-ts/core/Effect";
-import { pipe } from "@effect-ts/core/Function";
+import * as T from "effect/Effect";
+import { pipe } from "effect/Function";
 import * as fs from 'fs'
 import { match } from "ts-adt";
 
@@ -50,28 +50,28 @@ export const LogE = {
   info: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.chain(({ logger }) => T.effectTotal(() => {
+      T.flatMap(({ logger }) => T.effectTotal(() => {
         logger.info(...msg)
       })
     )),
   debug: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.chain(({ logger }) => T.effectTotal(() => {
+      T.flatMap(({ logger }) => T.effectTotal(() => {
         logger.debug(...msg)
       })
     )),
   warn: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.chain(({ logger }) => T.effectTotal(() => {
+      T.flatMap(({ logger }) => T.effectTotal(() => {
         logger.warn(...msg)
       })
     )),
   error: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.chain(({ logger }) => T.effectTotal(() => {
+      T.flatMap(({ logger }) => T.effectTotal(() => {
         logger.error(...msg)
       })
     )),

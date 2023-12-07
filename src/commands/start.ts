@@ -1,8 +1,8 @@
-import { literal, pipe } from "@effect-ts/core/Function";
+import { literal, pipe } from "effect/Function";
 
-import * as O from "@effect-ts/core/Option";
-import * as A from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { render } from "ink";
 import React from "react";
@@ -31,7 +31,7 @@ export const StartCommand: Command<
     pipe(
       A.head(rawArgs),
       T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "start"
           ? T.succeed({ _type: "start" as const })
           : T.fail({})
@@ -40,7 +40,7 @@ export const StartCommand: Command<
         pipe(
           argv.package,
           O.fromNullable,
-          O.chain((u) => (typeof u === "string" ? O.some(u) : O.none)),
+          O.flatMap((u) => (typeof u === "string" ? O.some(u) : O.none)),
           T.fromOption
         )
       ),
@@ -48,7 +48,7 @@ export const StartCommand: Command<
         pipe(
           argv.watchDependencies,
           O.fromNullable,
-          O.chain((u) => (typeof u === "boolean" ? O.some(u) : O.none)),
+          O.flatMap((u) => (typeof u === "boolean" ? O.some(u) : O.none)),
           T.fromOption
         )
       ),
@@ -63,7 +63,7 @@ export const StartCommand: Command<
           A.findFirst((w) => w.package.name === args.package),
           T.fromOption,
           T.mapError(() => ({
-            _tag: literal("InitialAppNotFound"),
+            _tag: "InitialAppNotFound" as const,
             appName: args.package,
           }))
         )

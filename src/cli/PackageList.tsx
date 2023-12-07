@@ -1,10 +1,10 @@
 import * as React from "react";
 import { PackageJson } from "../core/PackageJson";
 import { Text, useInput, useApp, Box, Spacer } from "ink";
-import { pipe } from "@effect-ts/core/Function";
+import { pipe } from "effect/Function";
 import { killedL, mkPackagesState } from "../core/packagesState";
 import Gradient from "ink-gradient";
-import * as T from "@effect-ts/core/Effect";
+import * as T from "effect/Effect";
 
 import Divider from "ink-divider";
 import { toGradient, StdoutConsoleEnv } from "./StdoutConsoleEnv";
@@ -36,7 +36,7 @@ export const PackageList = (props: PackageListProps) => {
   React.useEffect(() => {
     pipe(
       appStateA.startApp(rootApp),
-      T.chain(() =>
+      T.flatMap(() =>
         T.effectAsync((cb) => {
           appStateA.atom.subscribe({
             next: () => {

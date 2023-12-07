@@ -1,4 +1,4 @@
-import * as t from "io-ts";
+import * as t from "@effect/schema/Schema";
 
 export const WorkspacesC = t.union([
   t.array(t.string),

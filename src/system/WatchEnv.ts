@@ -1,6 +1,6 @@
-import { cons } from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
-import { flow, pipe } from "@effect-ts/core/Function";
+import { cons } from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
+import { flow, pipe } from "effect/Function";
 import chokidar from "chokidar";
 
 export interface WatchEnv {
@@ -19,7 +19,7 @@ export const WatchE = {
   ): T.Effect<WatchEnv, number, 0> =>
     pipe(
       T.environment<WatchEnv>(),
-      T.chain(({ watchEnv }) =>
+      T.flatMap(({ watchEnv }) =>
         T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
           console.log('setting up watch????', dirname, watchEnv);
           const { cleanup } = watchEnv.dir(dirname, onChange);

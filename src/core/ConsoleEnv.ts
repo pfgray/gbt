@@ -1,6 +1,6 @@
 
-import * as T from "@effect-ts/core/Effect";
-import { pipe } from "@effect-ts/core/Function";
+import * as T from "effect/Effect";
+import { pipe } from "effect/Function";
 
 /**
  * An environment for printing things to the application view
@@ -16,7 +16,7 @@ export const ConsoleE = {
   log: (context: string) => (msg: string) =>
     pipe(
       T.environment<ConsoleEnv>(),
-      T.chain(({ console }) =>
+      T.flatMap(({ console }) =>
         T.effectTotal(() => {
           console.log(context)(msg);
         })
@@ -25,7 +25,7 @@ export const ConsoleE = {
   error: (context: string) => (msg: string) =>
     pipe(
       T.environment<ConsoleEnv>(),
-      T.chain(({ console }) =>
+      T.flatMap(({ console }) =>
         T.effectTotal(() => {
           console.error(context)(msg);
         })

@@ -1,5 +1,5 @@
 import { ConsoleEnv } from "../core/ConsoleEnv";
-import { range } from "@effect-ts/core/Array";
+import { range } from "effect/ReadonlyArray";
 
 import * as gradient from "gradient-string";
 

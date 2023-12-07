@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import * as A from "@effect-ts/core/Array";
-import * as NEA from "@effect-ts/core/NonEmptyArray";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
-import { fromOption } from "@effect-ts/core/Effect";
-import { literal, pipe } from "@effect-ts/core/Function";
+import * as A from "effect/ReadonlyArray";
+import * as NEA from "effect/NonEmptyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
+import { fromOption } from "effect/Effect";
+import { literal, pipe } from "effect/Function";
 import { render } from "ink";
 import * as React from "react";
 import { makeMatchers } from "ts-adt/MakeADT";
@@ -56,7 +56,7 @@ const handleCommand =
   <K extends string, T extends object>(c: Command<K, T>) =>
     pipe(
       c.parseArgs(argv, rawArgs),
-      T.chain((args) =>
+      T.flatMap((args) =>
         pipe(
           args,
           O.fold(() => T.succeed({}), c.executeCommand(context))
@@ -72,7 +72,7 @@ const handleCommand =
 
 pipe(
   initialize,
-  T.chain((context) => {
+  T.flatMap((context) => {
     const yargParsedArgs = pipe(
       Commands,
       A.reduce(yargs(hideBin(process.argv)), (y, c) => c.addCommand(y))

@@ -1,4 +1,4 @@
-import * as T from "@effect-ts/core/Effect";
+import * as T from "effect/Effect";
 
 const enterAltScreenCommand = "\x1b[?1049h";
 const leaveAltScreenCommand = "\x1b[?1049l";

@@ -1,7 +1,7 @@
-import { pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 
 export const FindCommand: Command<"find", { pkg: string }> = {

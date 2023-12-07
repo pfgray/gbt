@@ -1,8 +1,8 @@
-import { pipe } from "@effect-ts/core/Function";
+import { pipe } from "effect/Function";
 
-import * as O from "@effect-ts/core/Option";
-import * as A from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { runScript } from "../core/scripts";
 import { mkPackagesState } from "../core/packagesState";
@@ -23,21 +23,16 @@ export const BuildCommand: Command<"build", { package: string }> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
-      trace("parsing build args", rawArgs),
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "build"
           ? T.succeed({ _type: "build" as const })
           : T.fail({})
       ),
-      trace("parsed build", argv, rawArgs),
       T.bind("package", () =>
         pipe(
           argv.package,
           O.fromNullable,
-          O.chain((u) => (typeof u === "string" ? O.some(u) : O.none)),
-          traceN("got package", 1),
-          T.fromOption
+          O.flatMap((u) => (typeof u === "string" ? O.some(u) : O.none())),
         )
       ),
       T.option
@@ -46,12 +41,12 @@ export const BuildCommand: Command<"build", { package: string }> = {
     return pipe(
       options.package,
       findPackageByName(context.workspaces),
-      T.fromOption,
+      // T.fromOption,
       T.mapError(() => ({
         _type: 'Error',
         message: `Can't find package ${options.package}`
       })),
-      T.chain(rootPackage => {
+      T.flatMap(rootPackage => {
 
         const tree = pipe(
           rootPackage,
@@ -73,6 +68,7 @@ export const BuildCommand: Command<"build", { package: string }> = {
 
         return pipe(
           tree,
+          a => a,
           A.filter(a => a.localDeps.length === 0),
           A.map(a => a.package),
           T.forEach(buildPackage({buildRoot: true}))
@@ -89,19 +85,20 @@ export const BuildCommand: Command<"build", { package: string }> = {
   )}
 };
 
-const packagesInTree = (workspaces: A.Array<AppWithDeps>) => (pkg: AppWithDeps): A.Array<AppWithDeps> =>
+const packagesInTree = (workspaces: ReadonlyArray<AppWithDeps>) => (pkg: AppWithDeps): ReadonlyArray<AppWithDeps> =>
   pipe(
     pkg.localDeps,
     A.filterMap(findPackage(workspaces)),
-    A.chain(packagesInTree(workspaces)),
-    A.concat([pkg]),
-    A.uniq(appWithDepsEqual)
+    A.flatMap(packagesInTree(workspaces)),
+    A.appendAll([pkg]),
+    A.dedupeWith(appWithDepsEqual)
   )
 
-const findAllLeafPackages = (workspaces: A.Array<AppWithDeps>) => (pkg: AppWithDeps): A.Array<PackageJson> =>
+const findAllLeafPackages = (workspaces: ReadonlyArray<AppWithDeps>) => (pkg: AppWithDeps): ReadonlyArray<PackageJson> =>
   pkg.localDeps.length === 0 ? [pkg.package] : pipe(
     pkg.localDeps,
     A.filterMap(findPackage(workspaces)),
-    A.chain(findAllLeafPackages(workspaces)),
-    A.uniq(packageJsonEqual)
+    A.flatMap(findAllLeafPackages(workspaces)),
+    A.dedupeWith(appWithDepsEqual)
+    // A.uniq(packageJsonEqual)
   )
