@@ -3,7 +3,7 @@ import * as A from "effect/ReadonlyArray";
 import * as O from "effect/Option";
 import * as T from "effect/Effect";
 import { Command } from "./Command";
-import { gradientForStr } from "../cli/StdoutConsoleEnv";
+import { gradientForStr } from "../core/console/StdoutReporter";
 
 export const ListCommand: Command<"list", {}> = {
   name: "list",
@@ -20,7 +20,7 @@ export const ListCommand: Command<"list", {}> = {
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       context.workspaces.forEach((w) => {
         console.log(
           `${gradientForStr(w.package.name)(w.package.name)}:${

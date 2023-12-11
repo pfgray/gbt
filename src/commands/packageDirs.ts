@@ -19,7 +19,7 @@ export const PackageDirsCommand: Command<"package-dirs", {}> = {
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       context.workspaces.forEach((w) => {
         console.log(w.dir);
       });

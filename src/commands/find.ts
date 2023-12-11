@@ -27,7 +27,7 @@ export const FindCommand: Command<"find", { pkg: string }> = {
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       pipe(
         context.workspaces,
         A.findFirst((p) => p.package.name === args.pkg),

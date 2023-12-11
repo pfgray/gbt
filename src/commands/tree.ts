@@ -154,7 +154,7 @@ export const renderDotGraphSvg = (graph: string) =>
     });
   });
 
-// T.effectTotal(() => {});
+// T.sync(() => {});
 // T.effectAsync<unknown, { _tag: "GraphvizError"; graph: string }, string>(
 //   (cb) => {
 //     graphviz

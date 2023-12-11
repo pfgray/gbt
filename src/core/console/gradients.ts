@@ -1,6 +1,3 @@
-import { ConsoleEnv } from "../core/ConsoleEnv";
-import { range } from "effect/ReadonlyArray";
-
 import * as gradient from "gradient-string";
 
 export const Colors = {
@@ -51,8 +48,8 @@ export const toGradient = (str: string) => {
 };
 
 export const gradientForStr = (s: string) => {
-  return gradient[toGradient(s)];
-}
+  return gradient[toGradient(s)](s);
+};
 
 const gradients = [
   "fruit",
@@ -65,33 +62,3 @@ const gradients = [
   "retro",
   "summer",
 ] as const;
-
-const spaces = (n: number) =>
-  range(0, n)
-    .map(() => " ")
-    .join("");
-
-const formatForContext = (c: string, m: string) =>
-  m
-    .trim()
-    .split("\n")
-    .map((s) => s.trim())
-    .map((s, i) => {
-      // console.log("formattin, ", s, i);
-      return i === 0 ? s : spaces(c.length) + s;
-    })
-    .join("\n");
-
-export const StdoutConsoleEnv: ConsoleEnv = {
-  console: {
-    log: (c) => (m) => {
-      console.log(gradient[toGradient(c)](c), formatForContext(c, m));
-    },
-    error: (c) => (m) => {
-      console.error(
-        gradient[toGradient(c)](c),
-        Colors.FgRed + formatForContext(c, m) + Colors.Reset
-      );
-    },
-  },
-};

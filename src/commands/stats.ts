@@ -27,7 +27,7 @@ export const StatsCommand: Command<"stats", {}> = {
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       context.workspaces.forEach((w) => {
         console.log(`${w.package.name}:`);
         console.log(`  ${w.localDeps.length} local dependencies`);

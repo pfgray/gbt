@@ -37,7 +37,7 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
       A.map(renderGraphCycle),
       T.succeed,
       T.tap((lines) =>
-        T.effectTotal(() => {
+        T.sync(() => {
           console.log(lines.join("\n"));
         })
       ),

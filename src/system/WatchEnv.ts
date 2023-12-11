@@ -21,10 +21,10 @@ export const WatchE = {
       T.environment<WatchEnv>(),
       T.flatMap(({ watchEnv }) =>
         T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
-          console.log('setting up watch????', dirname, watchEnv);
+          console.log("setting up watch????", dirname, watchEnv);
           const { cleanup } = watchEnv.dir(dirname, onChange);
-          return T.effectTotal(() => {
-            console.log('cleaning', dirname);
+          return T.sync(() => {
+            console.log("cleaning", dirname);
             cleanup();
           });
         })

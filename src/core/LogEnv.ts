@@ -1,32 +1,33 @@
-
 import * as T from "effect/Effect";
 import { pipe } from "effect/Function";
-import * as fs from 'fs'
+import * as fs from "fs";
 import { match } from "ts-adt";
 
-type LogMode = {
-  _type: 'stdout'
-} | {
-  _type: 'file',
-  path: fs.PathLike
-}
+type LogMode =
+  | {
+      _type: "stdout";
+    }
+  | {
+      _type: "file";
+      path: fs.PathLike;
+    };
 
 /**
  * An environment for printing things to the application view
  */
 export interface LogEnv {
   logger: {
-    debug: (...msg: unknown[]) => void; 
+    debug: (...msg: unknown[]) => void;
     info: (...msg: unknown[]) => void;
-    warn: (...msg: unknown[]) => void
+    warn: (...msg: unknown[]) => void;
     error: (...msg: unknown[]) => void;
   };
 }
 
-// const handleLog = 
+// const handleLog =
 //   (consoleMethod: 'log' | 'warn' | 'info' | 'debug', filePrefix: string, ...msg: unknown[]) =>
 //   (logEnv: LogEnv) =>
-//   T.effectTotal(() => {
+//   T.sync(() => {
 //     const now = new Date().toDateString()
 //     pipe(
 //       logEnv.mode,
@@ -45,34 +46,41 @@ export interface LogEnv {
 //     )
 //   })
 
-
 export const LogE = {
   info: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.flatMap(({ logger }) => T.effectTotal(() => {
-        logger.info(...msg)
-      })
-    )),
+      T.flatMap(({ logger }) =>
+        T.sync(() => {
+          logger.info(...msg);
+        })
+      )
+    ),
   debug: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.flatMap(({ logger }) => T.effectTotal(() => {
-        logger.debug(...msg)
-      })
-    )),
+      T.flatMap(({ logger }) =>
+        T.sync(() => {
+          logger.debug(...msg);
+        })
+      )
+    ),
   warn: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.flatMap(({ logger }) => T.effectTotal(() => {
-        logger.warn(...msg)
-      })
-    )),
+      T.flatMap(({ logger }) =>
+        T.sync(() => {
+          logger.warn(...msg);
+        })
+      )
+    ),
   error: (...msg: unknown[]) =>
     pipe(
       T.environment<LogEnv>(),
-      T.flatMap(({ logger }) => T.effectTotal(() => {
-        logger.error(...msg)
-      })
-    )),
+      T.flatMap(({ logger }) =>
+        T.sync(() => {
+          logger.error(...msg);
+        })
+      )
+    ),
 };

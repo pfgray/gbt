@@ -10,7 +10,7 @@ export const PS = {
     pipe(
       T.environment<ConsoleEnv>(),
       T.tap((t) =>
-        T.effectTotal(() => {
+        T.sync(() => {
           t.console.log(context)(command + " " + args.join(" "));
         })
       ),
@@ -33,7 +33,7 @@ export const PS = {
               cb(T.fail(code));
             }
           });
-          return T.effectTotal(() => {
+          return T.sync(() => {
             kill(child.pid);
           });
         })

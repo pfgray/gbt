@@ -7,7 +7,7 @@ import Gradient from "ink-gradient";
 import * as T from "effect/Effect";
 
 import Divider from "ink-divider";
-import { toGradient, StdoutConsoleEnv } from "./StdoutConsoleEnv";
+import { toGradient, StdoutReporter } from "./StdoutReporter";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
 
 import Spinner from "ink-spinner";
@@ -48,7 +48,7 @@ export const PackageList = (props: PackageListProps) => {
           return T.succeed(0);
         })
       ),
-      T.provide(StdoutConsoleEnv),
+      T.provide(StdoutReporter),
       T.provide(ChokidarWatchEnv),
       T.run
     );
