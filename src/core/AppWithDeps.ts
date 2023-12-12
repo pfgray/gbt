@@ -1,6 +1,7 @@
 import { identity, pipe } from "effect/Function";
 import * as O from "effect/Option";
 import * as E from "effect/Either";
+import * as T from "effect/Effect";
 import * as A from "effect/ReadonlyArray";
 import { PackageJson, packageJsonEqual } from "./PackageJson";
 import { Effect, Either, Order } from "effect";
@@ -30,28 +31,27 @@ export const findDeps =
       A.findFirst((a) => a.name === p.package.name),
       O.match({
         onNone: () =>
-          pipe(p.localDeps, A.filterMap(findPackage(allPackages)), (deps) =>
-            pipe(
+          pipe(p.localDeps, A.filterMap(findPackage(allPackages)), (deps) => {
+            return pipe(
               deps,
               A.map(findDeps(allPackages, parentContext.concat(p.package))),
-              (a) => a,
               Effect.allWith(),
-              (b) => b,
+              T.either,
+              T.runSync,
               E.map(A.flatMap(identity)),
               E.map((ds) => [...deps, ...ds])
-            )
-          ) as E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>>,
+            );
+          }),
         onSome: () => E.left(circularDep([...parentContext, p.package])),
       })
     );
   };
 
-A.makeBy(1, () => 4);
-
 export const findParents =
   (
     allPackages: ReadonlyArray<AppWithDeps>,
-    childContext: ReadonlyArray<PackageJson>
+    childContext: ReadonlyArray<PackageJson>,
+    onlyDirectParents: boolean = false
   ) =>
   (
     p: AppWithDeps
@@ -71,17 +71,27 @@ export const findParents =
               )
             ),
             (parents) =>
-              pipe(
-                parents,
-                A.map(findParents(allPackages, childContext.concat(p.package))),
-                Either.all,
-                Either.map(A.flatMap(identity))
-              )
+              onlyDirectParents
+                ? Either.right(parents)
+                : pipe(
+                    parents,
+                    A.map(
+                      findParents(allPackages, childContext.concat(p.package))
+                    ),
+                    Either.all,
+                    Either.map(A.flatMap(identity)),
+                    Either.map((ps) => [...parents, ...ps])
+                  )
           ),
         onSome: () => E.left(circularDep(childContext)),
       })
     );
   };
+
+export const findDirectParents = (
+  allPackages: ReadonlyArray<AppWithDeps>,
+  childContext: ReadonlyArray<PackageJson>
+) => findParents(allPackages, childContext, true);
 
 export const findPackage =
   (allPackages: ReadonlyArray<AppWithDeps>) => (p: PackageJson) =>

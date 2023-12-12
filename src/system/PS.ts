@@ -6,6 +6,16 @@ import kill from "tree-kill";
 import { Reporter } from "../core/console/Reporter";
 import { ReporterService } from "../core/console/Reporter";
 
+export type ProcessError = {
+  _tag: "process-error";
+  code: number;
+};
+
+export const processError = (code: number): ProcessError => ({
+  _tag: "process-error",
+  code,
+});
+
 export const PS = {
   spawn: (context: string) => (command: string) => (args: string[]) =>
     pipe(
@@ -17,11 +27,11 @@ export const PS = {
           const child = spawn(command, args);
 
           child.stdout.on("data", (data) => {
-            console.log(context)(data.toString());
+            pipe(console.log(context)(data.toString()), T.runSync);
           });
 
           child.stderr.on("data", (data) => {
-            console.error(context)(data.toString());
+            pipe(console.error(context)(data.toString()), T.runSync);
           });
 
           child.on("close", (code) => {
@@ -35,7 +45,8 @@ export const PS = {
             kill(child.pid);
           });
         })
-      )
+      ),
+      T.mapError((errCode) => processError(errCode))
     ),
   exec: (command: string) =>
     T.async<never, ExecException | string, string>((cb) => {

@@ -17,6 +17,7 @@ import { Reporter } from "../core/console/Reporter";
 import { StdoutReporter } from "../core/console/StdoutReporter";
 import { mkFileLogEnv } from "../core/logger/FileLogger";
 import { mkPackagesState } from "../core/packagesState/packagesStateAtom";
+import { mkConsoleLogger } from "../core/logger/ConsoleLogger";
 
 export const BuildCommand: Command<"build", { package: string }> = {
   name: "build",
@@ -56,7 +57,7 @@ export const BuildCommand: Command<"build", { package: string }> = {
 
         const { runCommandInApp, buildPackage } = pipe(
           mkPackagesState(tree, rootPackage),
-          T.provide(mkFileLogEnv("./.gbt.log")),
+          T.provide(mkConsoleLogger()),
           T.runSync
         );
 

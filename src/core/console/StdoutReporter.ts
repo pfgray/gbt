@@ -14,6 +14,7 @@ const formatForContext = (context: string, msg: string) =>
     .trim()
     .split("\n")
     .map((s) => s.trim())
+    .filter((s) => s !== "")
     .map((s, i) => {
       return i === 0 ? s : spaces(context.length) + s;
     })
@@ -24,19 +25,26 @@ export const StdoutReporter = Layer.succeed(
   ReporterService.of({
     error: (context?: string) => (msg) =>
       Effect.sync(() => {
-        if (typeof context === "undefined") {
-          console.error(
-            gradientForStr(context),
-            formatForContext(context, msg)
-          );
+        const messages = msg.split("\n");
+        if (typeof context !== "undefined") {
+          messages.forEach((msg) => {
+            console.error(
+              `${gradientForStr(context)} ${formatForContext(context, msg)}`
+            );
+          });
         } else {
           console.error(msg);
         }
       }),
     log: (context?: string) => (msg) =>
       Effect.sync(() => {
-        if (typeof context === "undefined") {
-          console.log(gradientForStr(context), formatForContext(context, msg));
+        const messages = msg.split("\n");
+        if (typeof context !== "undefined") {
+          messages.forEach((msg) => {
+            console.log(
+              `${gradientForStr(context)} ${formatForContext(context, msg)}`
+            );
+          });
         } else {
           console.log(msg);
         }

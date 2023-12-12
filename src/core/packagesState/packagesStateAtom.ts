@@ -1,9 +1,11 @@
 import {
   Effect,
   Either,
+  Exit,
   Fiber,
   Layer,
   Option,
+  Order,
   ReadonlyArray,
   flow,
   identity,
@@ -12,12 +14,13 @@ import {
 import {
   AppWithDeps,
   findDeps,
+  findDirectParents,
   findPackage,
   findParents,
 } from "../AppWithDeps";
 import { Logger, LoggerService } from "../logger/Logger";
 import { mkAtom } from "../atom/atom";
-import { PackagesState } from "./PackagesState";
+import { AppWithProcess, PackagesState } from "./PackagesState";
 import { PackageJson } from "../PackageJson";
 import * as T from "effect/Effect";
 import {
@@ -33,8 +36,25 @@ import * as path from "path";
 import { Watch } from "../../system/watch/Watch";
 import { StdoutReporter } from "../console/StdoutReporter";
 import { mkFileLogEnv } from "../logger/FileLogger";
+import { atom } from "frp-ts";
+import { NonEmptyReadonlyArray } from "effect/ReadonlyArray";
+import { trace } from "../debug";
 
-mkFileLogEnv("packagesStateAtom");
+const renderPackages = (state: PackagesState) => {
+  const renderPackage = (longestName: number) => (pkg: AppWithProcess) => {
+    return `${pkg.app.package.name.padEnd(longestName + 3, ".")}${pkg.state}`;
+  };
+  const longestName = pipe(
+    state.workspaces,
+    ReadonlyArray.map((w) => w.app.package.name.length),
+    ReadonlyArray.match({
+      onEmpty: () => 0,
+      onNonEmpty: ReadonlyArray.max(Order.number),
+    }),
+    (a) => a
+  );
+  return pipe(state.workspaces, ReadonlyArray.map(renderPackage(longestName)));
+};
 
 export const mkPackagesState = (
   workspaces: ReadonlyArray<AppWithDeps>,
@@ -63,9 +83,10 @@ export const mkPackagesState = (
         })),
       });
 
-      atom.subscribe(() => {
-        logger.debug("Got new state: ", atom.get());
-      });
+      // atom.subscribe(() => {
+      //   logger.debug("Got new state:");
+      //   logger.debug(`\n  ${renderPackages(atom.get()).join("\n  ")}`);
+      // });
 
       const killApp = (p: PackageJson) => {
         return pipe(
@@ -97,10 +118,10 @@ export const mkPackagesState = (
           runScript(p)(command),
           atom.tapModify(() => setAppBuildProcess(p.name)(Option.none())),
           T.flatMap(() => onComplete),
-          T.fork,
-          atom.tapModify((process) =>
-            setAppBuildProcess(p.name)(Option.some(process))
-          )
+          T.forkDaemon,
+          atom.tapModify((process) => {
+            return setAppBuildProcess(p.name)(Option.some(process));
+          })
         );
       };
 
@@ -108,7 +129,7 @@ export const mkPackagesState = (
         (options: { buildRoot: boolean }) =>
         (p: PackageJson): T.Effect<Reporter, never, unknown> => {
           // don't build if a dependency is building
-          const depIsBuilding = pipe(
+          const depIsBuildingOrWaiting = pipe(
             findPackage(workspaces)(p),
             (a) => a,
             Option.match({
@@ -121,29 +142,21 @@ export const mkPackagesState = (
                 })
               ),
             }),
-
             ReadonlyArray.filterMap((d) => {
               const buildingPackage = pipe(
                 atom.get().workspaces,
                 ReadonlyArray.findFirst(
                   (a) => a.app.package.name === d.package.name
                 ),
-                Option.filter((s) => s.state === "building")
+                Option.filter(
+                  (s) => s.state === "building" || s.state === "waiting"
+                )
               );
-              if (Option.isSome(buildingPackage)) {
-                console.log(
-                  `not building ${p.name} because ${d.package.name} is building`
-                );
-                console.log(`  ${d.package.name}'s dependents are:`);
-                console.log(
-                  `  ${d.localDependents.map((d) => d.name).join(", ")}`
-                );
-              }
               return buildingPackage;
             }),
             ReadonlyArray.isNonEmptyArray
           );
-          return depIsBuilding
+          return depIsBuildingOrWaiting
             ? T.succeed(0)
             : pipe(
                 T.Do,
@@ -176,7 +189,7 @@ export const mkPackagesState = (
                       atom.modify(setAppState(p.name)("watching")),
                       T.tap(() =>
                         pipe(
-                          findParents(workspaces, [])(pkg),
+                          findDirectParents(workspaces, [])(pkg),
                           T.map(ReadonlyArray.map((p) => p.package)),
                           T.map(
                             ReadonlyArray.filter(
@@ -193,6 +206,10 @@ export const mkPackagesState = (
                   )
                 ),
                 (a) => a,
+                T.mapError((err) => {
+                  console.log("err? ", err);
+                  return err;
+                }),
                 T.orElse(() => T.succeed(0))
               );
         };
@@ -232,8 +249,8 @@ export const mkPackagesState = (
                       onNone: () =>
                         pipe(
                           Watch.dir(watchDir, () => {
-                            console.log("source change detected in", watchDir);
-                            console.log("rebuilding", d.package.name);
+                            logger.debug("source change detected in", watchDir);
+                            logger.debug("rebuilding", d.package.name);
                             return pipe(
                               buildPackage({ buildRoot: false })(d.package),
                               T.provide(StdoutReporter)

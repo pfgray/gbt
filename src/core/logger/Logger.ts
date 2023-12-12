@@ -25,25 +25,3 @@ export const Logger = {
   error: (...msg: unknown[]) =>
     LoggerService.pipe(Effect.tap((r) => r.error(...msg))),
 };
-
-// const handleLog =
-//   (consoleMethod: 'log' | 'warn' | 'info' | 'debug', filePrefix: string, ...msg: unknown[]) =>
-//   (logEnv: LogEnv) =>
-//   T.sync(() => {
-//     const now = new Date().toDateString()
-//     pipe(
-//       logEnv.mode,
-//       match({
-//         stdout: () => console[consoleMethod](now, ...msg),
-//         file: ({path}) => {
-//           fs.writeFileSync(path, `${filePrefix} ${now} ` + msg.map(u => {
-//             if(typeof u === 'string') {
-//               return u
-//             } else {
-//               return JSON.stringify(u)
-//             }
-//           }).join(" "))
-//         }
-//       })
-//     )
-//   })
