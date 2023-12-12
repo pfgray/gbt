@@ -11,34 +11,35 @@ export const FindCommand: Command<"find", { pkg: string }> = {
     pipe(
       A.head(rawArgs),
       O.filter((command) => command === "find"),
-      O.fold(
-        () => T.succeed(O.none),
-        () =>
+      O.match({
+        onNone: () => T.succeed(O.none()),
+        onSome: () =>
           pipe(
             rawArgs,
-            A.dropLeft(1),
+            A.drop(1),
             A.head,
             O.filter((p): p is string => typeof p === "string"),
-            O.fold(
-              () => T.fail(`find requires a <package> argument`),
-              (pkg) => T.succeed(O.some({ _type: "find" as const, pkg }))
-            )
-          )
-      )
+            O.match({
+              onNone: () => T.fail(`find requires a <package> argument`),
+              onSome: (pkg) =>
+                T.succeed(O.some({ _type: "find" as const, pkg })),
+            })
+          ),
+      })
     ),
   executeCommand: (context) => (args) =>
     T.sync(() => {
       pipe(
         context.workspaces,
         A.findFirst((p) => p.package.name === args.pkg),
-        O.fold(
-          () => {
+        O.match({
+          onNone: () => {
             console.error(`Package ${args.pkg} not found`);
           },
-          (p) => {
+          onSome: (p) => {
             console.log(p.dir);
-          }
-        )
+          },
+        })
       );
     }),
 };

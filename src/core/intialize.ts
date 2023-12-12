@@ -84,8 +84,10 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
             localDeps: pipe(
               [p.dependencies, p.devDependencies, p.peerDependencies],
               A.filterMap(O.fromNullable),
-              A.reduce({} as Record<string, string>, (z, a) => Object.assign({}, a, z)),
-              a => a,
+              A.reduce({} as Record<string, string>, (z, a) =>
+                Object.assign({}, a, z)
+              ),
+              (a) => a,
               R.filterMap((version, name) =>
                 pipe(
                   packages,
@@ -103,7 +105,10 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
             const localDependents = pipe(
               workspaces,
               A.filter((w) =>
-                pipe(w.localDeps, A.containsWith(packageJsonEqual)(workspace.package))
+                pipe(
+                  w.localDeps,
+                  A.containsWith(packageJsonEqual)(workspace.package)
+                )
               ),
               A.map((w) => w.package)
             );
@@ -116,8 +121,7 @@ const findWorkspaces = (root: PackageJson, dir: string) =>
 
 export const initialize = pipe(
   T.succeed({}),
-  T.bind("rootProject", () => resolveProject(process.cwd())
-  ),
+  T.bind("rootProject", () => resolveProject(process.cwd())),
   T.bind("workspaces", ({ rootProject }) => {
     return pipe(findWorkspaces(rootProject, path.dirname(process.cwd())));
   })
@@ -126,5 +130,4 @@ export const initialize = pipe(
 const checkCircular = (options: {
   workspaces: ReadonlyArray<AppWithDeps>;
   rootApp: AppWithDeps;
-}) =>
-  findDeps(options.workspaces, [])(options.rootApp)
+}) => findDeps(options.workspaces, [])(options.rootApp);

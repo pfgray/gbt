@@ -15,7 +15,6 @@ const formatForContext = (context: string, msg: string) =>
     .split("\n")
     .map((s) => s.trim())
     .map((s, i) => {
-      // console.log("formattin, ", s, i);
       return i === 0 ? s : spaces(context.length) + s;
     })
     .join("\n");

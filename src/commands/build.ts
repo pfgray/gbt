@@ -5,7 +5,6 @@ import * as A from "effect/ReadonlyArray";
 import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { runScript } from "../core/scripts";
-import { mkPackagesState } from "../core/packagesState";
 import {
   AppWithDeps,
   appWithDepsEqual,
@@ -16,7 +15,8 @@ import { trace, traceN } from "../core/debug";
 import { PackageJson, packageJsonEqual } from "../core/PackageJson";
 import { Reporter } from "../core/console/Reporter";
 import { StdoutReporter } from "../core/console/StdoutReporter";
-import { mkFileLogEnv } from "../cli/FileLogEnv";
+import { mkFileLogEnv } from "../core/logger/FileLogger";
+import { mkPackagesState } from "../core/packagesState/packagesStateAtom";
 
 export const BuildCommand: Command<"build", { package: string }> = {
   name: "build",
@@ -54,17 +54,10 @@ export const BuildCommand: Command<"build", { package: string }> = {
       T.flatMap((rootPackage) => {
         const tree = pipe(rootPackage, packagesInTree(context.workspaces));
 
-        // return T.sync(() => {
-        //   console.log(`For package ${rootPackage.package.name}, found:`)
-        //   tree.forEach(t => {
-        //     console.log(t.package.name)
-        //   })
-        // })
-
-        const { runCommandInApp, buildPackage } = mkPackagesState(
-          tree,
-          rootPackage,
-          mkFileLogEnv("./.gbt.log")
+        const { runCommandInApp, buildPackage } = pipe(
+          mkPackagesState(tree, rootPackage),
+          T.provide(mkFileLogEnv("./.gbt.log")),
+          T.runSync
         );
 
         return pipe(
@@ -74,12 +67,6 @@ export const BuildCommand: Command<"build", { package: string }> = {
           A.map((a) => a.package),
           T.forEach(buildPackage({ buildRoot: true }))
         );
-
-        // return pipe(
-        //   rootPackage,
-        //   findAllLeafPackages(context.workspaces),
-        //   T.forEach(buildPackage),
-        // )
       }),
       T.provide(StdoutReporter)
     );

@@ -11,14 +11,11 @@ export const VersionCommand: Command<"version", { pkg: string }> = {
     pipe(
       A.head(rawArgs),
       O.map((command) => ({ command })),
-      (a) => a,
-      O.bind("pkg", () => pipe(rawArgs, A.dropLeft(1), A.head)),
-      (a) => a,
-      T.fromOption,
+      O.bind("pkg", () => pipe(rawArgs, A.drop(1), A.head)),
       T.flatMap(({ command, pkg }) =>
         command === "version" && typeof pkg === "string"
           ? T.succeed(O.some({ _type: "version" as const, pkg }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>

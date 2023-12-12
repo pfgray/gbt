@@ -11,11 +11,10 @@ export const PackageDirsCommand: Command<"package-dirs", {}> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
       T.flatMap((command) =>
         command === "package-dirs"
           ? T.succeed(O.some({ _type: "package-dirs" as const }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>

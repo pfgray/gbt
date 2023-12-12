@@ -19,11 +19,10 @@ export const StatsCommand: Command<"stats", {}> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
       T.flatMap((command) =>
         command === "stats"
           ? T.succeed(O.some({ _type: "stats" as const }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
@@ -37,15 +36,15 @@ export const StatsCommand: Command<"stats", {}> = {
       const formative = pipe(
         context.workspaces,
         A.sort(appWithDepsFormativeOrdering),
-        A.takeLeft(5)
+        A.take(5)
       );
 
       const painful = pipe(
         context.workspaces,
         A.sort(appWithDepsTotalDepsOrdering),
-        A.takeLeft(30),
+        A.take(30),
         A.sort(appWithDepsDepRatioOrdering),
-        A.takeLeft(5)
+        A.take(5)
       );
 
       console.log("Most formative packages:");

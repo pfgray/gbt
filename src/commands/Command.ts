@@ -11,11 +11,9 @@ export type Command<K extends string, T extends object> = {
   parseArgs: (
     argv: Record<string, unknown>,
     rawArgs: Array<string | number>
-  ) => T.Effect<unknown, unknown, O.Option<{ _type: K } & T>>;
+  ) => T.Effect<never, unknown, O.Option<{ _type: K } & T>>;
   executeCommand: (context: {
-    rootProject: {
-      root: PackageJson;
-    };
-    workspaces: A.Array<AppWithDeps>;
-  }) => (t: T) => T.Effect<unknown, unknown, unknown>;
+    rootProject: PackageJson;
+    workspaces: ReadonlyArray<AppWithDeps>;
+  }) => (t: T) => T.Effect<never, unknown, unknown>;
 };

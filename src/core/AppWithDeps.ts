@@ -3,8 +3,7 @@ import * as O from "effect/Option";
 import * as E from "effect/Either";
 import * as A from "effect/ReadonlyArray";
 import { PackageJson, packageJsonEqual } from "./PackageJson";
-import { Equal } from "effect/Equal";
-import { Effect, Either, Equal, Order } from "effect";
+import { Effect, Either, Order } from "effect";
 
 export type AppWithDeps = {
   dir: string;
@@ -35,19 +34,19 @@ export const findDeps =
             pipe(
               deps,
               A.map(findDeps(allPackages, parentContext.concat(p.package))),
-              a => a,
+              (a) => a,
               Effect.allWith(),
-              b => b,
+              (b) => b,
               E.map(A.flatMap(identity)),
               E.map((ds) => [...deps, ...ds])
             )
           ) as E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>>,
-        onSome: () => E.left(circularDep([...parentContext, p.package]))
+        onSome: () => E.left(circularDep([...parentContext, p.package])),
       })
     );
   };
 
-A.makeBy(1, () => 4)
+A.makeBy(1, () => 4);
 
 export const findParents =
   (
@@ -56,37 +55,37 @@ export const findParents =
   ) =>
   (
     p: AppWithDeps
-  ): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
+  ): E.Either<ReturnType<typeof circularDep>, ReadonlyArray<AppWithDeps>> => {
     return pipe(
       childContext,
       A.findFirst((a) => a.name === p.package.name),
       O.match({
-        onNone: 
-          () =>
-            pipe(
-              allPackages,
-              A.filter((a) =>
-                pipe(
-                  a.localDeps,
-                  A.findFirst((d) => d.name === p.package.name),
-                  O.isSome
-                )
-              ),
-              (parents) => pipe(
-                  parents,
-                  A.map(findParents(allPackages, childContext.concat(p.package))),
-                  Either.all,
-                  Either.map(A.flatMap(identity))
-                )
-              ),
-        onSome: () => E.left(circularDep(childContext))
+        onNone: () =>
+          pipe(
+            allPackages,
+            A.filter((a) =>
+              pipe(
+                a.localDeps,
+                A.findFirst((d) => d.name === p.package.name),
+                O.isSome
+              )
+            ),
+            (parents) =>
+              pipe(
+                parents,
+                A.map(findParents(allPackages, childContext.concat(p.package))),
+                Either.all,
+                Either.map(A.flatMap(identity))
+              )
+          ),
+        onSome: () => E.left(circularDep(childContext)),
       })
     );
   };
 
 export const findPackage =
   (allPackages: ReadonlyArray<AppWithDeps>) => (p: PackageJson) =>
-    findPackageByName(allPackages)(p.name)
+    findPackageByName(allPackages)(p.name);
 
 export const findPackageByName =
   (allPackages: ReadonlyArray<AppWithDeps>) => (name: string) =>
@@ -104,14 +103,15 @@ export const appWithDepsLocalDependentsOrdering = pipe(
   Order.mapInput((a: AppWithDeps) => a.localDependents.length)
 );
 
-export const appWithDepsFormativeOrdering =
-  Order.combine(appWithDepsLocalDepsOrdering)(
-    Order.reverse(appWithDepsLocalDependentsOrdering)
-  );
+export const appWithDepsFormativeOrdering = Order.combine(
+  appWithDepsLocalDepsOrdering
+)(Order.reverse(appWithDepsLocalDependentsOrdering));
 
 export const appWithDepsTotalDepsOrdering = pipe(
   Order.number,
-  Order.mapInput((a: AppWithDeps) => a.localDependents.length + a.localDeps.length),
+  Order.mapInput(
+    (a: AppWithDeps) => a.localDependents.length + a.localDeps.length
+  ),
   Order.reverse
 );
 
@@ -122,9 +122,8 @@ export const appWithDepsDepRatioOrdering = pipe(
   )
 );
 
-export const appWithDepsEqual = 
-  (a: AppWithDeps, b: AppWithDeps) => 
-    a.package.name === b.package.name
+export const appWithDepsEqual = (a: AppWithDeps, b: AppWithDeps) =>
+  a.package.name === b.package.name;
 
 export const appWithDepsPainfulOrdering = Order.combine(
   appWithDepsDepRatioOrdering

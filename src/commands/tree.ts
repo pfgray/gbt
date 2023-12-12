@@ -1,4 +1,4 @@
-import { literal, pipe } from "effect/Function";
+import { pipe } from "effect/Function";
 
 import * as O from "effect/Option";
 import * as A from "effect/ReadonlyArray";
@@ -8,7 +8,6 @@ import { FS } from "../system/FS";
 import path from "path";
 import { PackageJson } from "../core/PackageJson";
 import { exec } from "child_process";
-import { onLeft } from "effect/Effect";
 
 const tap =
   (...msg: unknown[]): (<T>(t: T) => T) =>
@@ -31,8 +30,8 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
       }),
   parseArgs: (argv, rawArgs) =>
     pipe(
-      A.head(rawArgs),
-      T.fromOption,
+      rawArgs,
+      A.head,
       T.flatMap((command) =>
         command === "tree"
           ? T.succeed(
@@ -45,7 +44,7 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
                 ),
               })
             )
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
@@ -77,25 +76,24 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
 const generateDotGraph =
   (focus: O.Option<string>) =>
   (
-    workspaces: A.Array<{
+    workspaces: ReadonlyArray<{
       dir: string;
       package: PackageJson;
-      localDeps: A.Array<PackageJson>;
+      localDeps: ReadonlyArray<PackageJson>;
     }>
   ): string =>
     pipe(
       workspaces,
-      A.map((workspace) => ({ workspace })),
-      A.bind("localDep", ({ workspace }) => workspace.localDeps),
+      workspacesWithLocalDeps,
       A.filter(({ workspace, localDep }) =>
         pipe(
           focus,
-          O.fold(
-            () => true,
-            (focusedPackage) =>
+          O.match({
+            onNone: () => true,
+            onSome: (focusedPackage) =>
               workspace.package.name === focusedPackage ||
-              localDep.name === focusedPackage
-          )
+              localDep.name === focusedPackage,
+          })
         )
       ),
       A.map(
@@ -120,17 +118,36 @@ const generateDotGraph =
        \n ${lines} \n}`
     );
 
-const plantUmlGraph = (
-  workspaces: A.Array<{
+const workspacesWithLocalDeps = (
+  workspaces: ReadonlyArray<{
     dir: string;
     package: PackageJson;
-    localDeps: A.Array<PackageJson>;
+    localDeps: ReadonlyArray<PackageJson>;
   }>
-): A.Array<string> =>
+) =>
   pipe(
     workspaces,
-    A.map((workspace) => ({ workspace })),
-    A.bind("localDep", ({ workspace }) => workspace.localDeps),
+    A.flatMap((workspace) =>
+      pipe(
+        workspace.localDeps,
+        A.map((localDep) => ({
+          workspace,
+          localDep,
+        }))
+      )
+    )
+  );
+
+const plantUmlGraph = (
+  workspaces: ReadonlyArray<{
+    dir: string;
+    package: PackageJson;
+    localDeps: ReadonlyArray<PackageJson>;
+  }>
+): ReadonlyArray<string> =>
+  pipe(
+    workspaces,
+    workspacesWithLocalDeps,
     A.map(
       ({ workspace, localDep }) =>
         `(${workspace.package.name}) --> (${localDep.name})`
@@ -138,16 +155,16 @@ const plantUmlGraph = (
   );
 
 export const renderDotGraphSvg = (graph: string) =>
-  T.effectAsync<
-    unknown,
+  T.async<
+    never,
     { _tag: "GraphvizError"; error?: unknown; stderr?: unknown },
     string
   >((cb) => {
     exec(`echo '${graph}' | dot -Tsvg`, (error, stdout, stderr) => {
       if (error) {
-        cb(T.fail({ _tag: "GraphvizError"), error }) as const;
+        cb(T.fail({ _tag: "GraphvizError" as const, error }));
       } else if (stderr) {
-        cb(T.fail({ _tag: "GraphvizError"), stderr: stderr }) as const;
+        cb(T.fail({ _tag: "GraphvizError" as const, stderr: stderr }));
       } else {
         cb(T.succeed(stdout));
       }

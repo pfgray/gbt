@@ -1,21 +1,19 @@
 import * as T from "effect/Effect";
 import { pipe } from "effect/Function";
 import { exec, spawn, ExecException } from "child_process";
-import { ConsoleEnv } from "../core/ConsoleEnv";
 
 import kill from "tree-kill";
+import { Reporter } from "../core/console/Reporter";
+import { ReporterService } from "../core/console/Reporter";
 
 export const PS = {
   spawn: (context: string) => (command: string) => (args: string[]) =>
     pipe(
-      T.environment<ConsoleEnv>(),
-      T.tap((t) =>
-        T.sync(() => {
-          t.console.log(context)(command + " " + args.join(" "));
-        })
-      ),
+      Reporter.log(context)(command + " " + args.join(" ")),
+      T.bindTo("intro"),
+      T.bind("console", () => ReporterService),
       T.flatMap(({ console }) =>
-        T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
+        T.async<never, number, 0>((cb) => {
           const child = spawn(command, args);
 
           child.stdout.on("data", (data) => {
@@ -40,7 +38,7 @@ export const PS = {
       )
     ),
   exec: (command: string) =>
-    T.effectAsync<unknown, ExecException | string, string>((cb) => {
+    T.async<never, ExecException | string, string>((cb) => {
       exec(command, (err, stdout, stderr) => {
         if (err) {
           cb(T.fail(err));

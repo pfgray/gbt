@@ -1,8 +1,8 @@
-import { literal, pipe } from "effect/Function";
+import { pipe } from "effect/Function";
 import { PackageJson } from "./PackageJson";
 import * as O from "effect/Option";
 import * as A from "effect/ReadonlyArray";
-import * as R from "effect/Record";
+import * as R from "effect/ReadonlyRecord";
 import * as T from "effect/Effect";
 import { PS } from "../system/PS";
 
@@ -16,9 +16,9 @@ export const runScript = (p: PackageJson) => (command: string) =>
 const getCommand = (command: string) => (p: PackageJson) =>
   pipe(
     O.fromNullable(p.scripts),
-    O.map(R.toArray),
+    O.map(R.toEntries),
     O.flatMap(A.findFirst(([s]) => s === command)),
-    T.fromOption,
+    (a) => a,
     T.mapError(() => ({
       _tag: "CommandNotFound" as const,
       package: p,
