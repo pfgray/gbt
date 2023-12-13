@@ -15,18 +15,18 @@ export const PackageJsonC = S.struct({
   workspaces: S.optional(WorkspacesC),
   scripts: S.optional(S.record(S.string, S.string)),
   src: S.optional(S.string),
-})
+  engines: S.optional(S.record(S.string, S.string)),
+});
 
 export type PackageJsonT = S.Schema.To<typeof PackageJsonC>;
 export interface PackageJson extends PackageJsonT {}
 
-export const packageJsonEqual =
-  (a: PackageJson, b: PackageJson) =>
-    a.name === b.name
+export const packageJsonEqual = (a: PackageJson, b: PackageJson) =>
+  a.name === b.name;
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
-    S.parse(PackageJsonC)(JSON.parse(contents), {onExcessProperty: 'ignore'}),
+    S.parse(PackageJsonC)(JSON.parse(contents), { onExcessProperty: "ignore" }),
     T.mapError((errs) => ({
       _tag: "ParsePackageJsonError" as const,
       parsedError: TreeFormatter.formatErrors(errs.errors),

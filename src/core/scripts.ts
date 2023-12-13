@@ -5,13 +5,28 @@ import * as A from "effect/ReadonlyArray";
 import * as R from "effect/ReadonlyRecord";
 import * as T from "effect/Effect";
 import { PS } from "../system/PS";
+import { GbtContext } from "../commands/Command";
 
-export const runScript = (p: PackageJson) => (command: string) =>
-  pipe(
-    p,
-    getCommand(command),
-    T.flatMap((cmd) => PS.spawn(p.name)("yarn")(["workspace", p.name, command]))
-  );
+const runYarnScript = (p: PackageJson) => (command: string) =>
+  PS.spawn(p.name)("yarn")(["workspace", p.name, command]);
+const runPnpmScript = (p: PackageJson) => (command: string) =>
+  PS.spawn(p.name)("pnpm")(["--filter", p.name, command]);
+const runNpmScript = (p: PackageJson) => (command: string) =>
+  PS.spawn(p.name)("npm")(["run", command, "-w", p.name]);
+
+export const runScript =
+  (context: GbtContext, p: PackageJson) => (command: string) =>
+    pipe(
+      p,
+      getCommand(command),
+      T.flatMap((_cmd) => {
+        return context.rootProject.engines?.pnpm
+          ? runPnpmScript(p)(command)
+          : context.rootProject.engines?.yarn
+          ? runYarnScript(p)(command)
+          : runNpmScript(p)(command);
+      })
+    );
 
 const getCommand = (command: string) => (p: PackageJson) =>
   pipe(

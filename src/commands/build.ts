@@ -4,7 +4,6 @@ import * as O from "effect/Option";
 import * as A from "effect/ReadonlyArray";
 import * as T from "effect/Effect";
 import { Command } from "./Command";
-import { runScript } from "../core/scripts";
 import {
   AppWithDeps,
   appWithDepsEqual,
@@ -56,7 +55,13 @@ export const BuildCommand: Command<"build", { package: string }> = {
         const tree = pipe(rootPackage, packagesInTree(context.workspaces));
 
         const { runCommandInApp, buildPackage } = pipe(
-          mkPackagesState(tree, rootPackage),
+          mkPackagesState(
+            {
+              ...context,
+              workspaces: tree,
+            },
+            rootPackage
+          ),
           T.provide(mkConsoleLogger()),
           T.runSync
         );

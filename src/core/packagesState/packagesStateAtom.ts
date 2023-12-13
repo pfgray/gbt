@@ -39,6 +39,7 @@ import { mkFileLogEnv } from "../logger/FileLogger";
 import { atom } from "frp-ts";
 import { NonEmptyReadonlyArray } from "effect/ReadonlyArray";
 import { trace } from "../debug";
+import { GbtContext } from "../../commands/Command";
 
 const renderPackages = (state: PackagesState) => {
   const renderPackage = (longestName: number) => (pkg: AppWithProcess) => {
@@ -57,14 +58,14 @@ const renderPackages = (state: PackagesState) => {
 };
 
 export const mkPackagesState = (
-  workspaces: ReadonlyArray<AppWithDeps>,
+  context: GbtContext,
   rootApp: AppWithDeps
   // logger: Layer.Layer<never, never, Logger>
 ) =>
   LoggerService.pipe(
     Effect.map((logger) => {
       const dependencies = pipe(
-        findDeps(workspaces, [])(rootApp),
+        findDeps(context.workspaces, [])(rootApp),
         Either.match({
           onLeft: () => [] as Array<AppWithDeps>,
           onRight: identity,
@@ -75,7 +76,7 @@ export const mkPackagesState = (
         dependencies,
         rootApp,
         killed: false,
-        workspaces: workspaces.map((app) => ({
+        workspaces: context.workspaces.map((app) => ({
           app,
           build: Option.none(),
           watch: Option.none(),
@@ -115,7 +116,7 @@ export const mkPackagesState = (
         onComplete: T.Effect<R, E, unknown>
       ) => {
         return pipe(
-          runScript(p)(command),
+          runScript(context, p)(command),
           atom.tapModify(() => setAppBuildProcess(p.name)(Option.none())),
           T.flatMap(() => onComplete),
           T.forkDaemon,
@@ -130,12 +131,12 @@ export const mkPackagesState = (
         (p: PackageJson): T.Effect<Reporter, never, unknown> => {
           // don't build if a dependency is building
           const depIsBuildingOrWaiting = pipe(
-            findPackage(workspaces)(p),
+            findPackage(context.workspaces)(p),
             (a) => a,
             Option.match({
               onNone: ReadonlyArray.empty,
               onSome: flow(
-                findDeps(workspaces, []),
+                findDeps(context.workspaces, []),
                 Either.match({
                   onLeft: ReadonlyArray.empty,
                   onRight: identity,
@@ -160,10 +161,10 @@ export const mkPackagesState = (
             ? T.succeed(0)
             : pipe(
                 T.Do,
-                T.bind("pkg", () => findPackage(workspaces)(p)),
+                T.bind("pkg", () => findPackage(context.workspaces)(p)),
                 tapSync(({ pkg }) => {
                   const parentUpdates = pipe(
-                    findParents(workspaces, [])(pkg),
+                    findParents(context.workspaces, [])(pkg),
                     Either.match({
                       onLeft: () =>
                         ReadonlyArray.empty<PackagesStateModifier>(),
@@ -180,7 +181,6 @@ export const mkPackagesState = (
 
                   atom.modifyNow(...updates);
                 }),
-                (a) => a,
                 T.tap(({ pkg }) =>
                   runCommandInApp(
                     p,
@@ -189,7 +189,7 @@ export const mkPackagesState = (
                       atom.modify(setAppState(p.name)("watching")),
                       T.tap(() =>
                         pipe(
-                          findDirectParents(workspaces, [])(pkg),
+                          findDirectParents(context.workspaces, [])(pkg),
                           T.map(ReadonlyArray.map((p) => p.package)),
                           T.map(
                             ReadonlyArray.filter(

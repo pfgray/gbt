@@ -66,12 +66,15 @@ export const StartCommand: Command<
         )
       ),
       T.bind("reactApp", ({ appPackageJson }) => {
-        const wut = pipe(
-          mkPackagesState(context.workspaces, appPackageJson),
-          T.provide(mkFileLogEnv("./gbt.log")),
-          T.runSync
+        return renderApp(
+          context.workspaces,
+          pipe(
+            mkPackagesState(context, appPackageJson),
+            T.provide(mkFileLogEnv("./gbt.log")),
+            T.runSync
+          ),
+          appPackageJson.package
         );
-        return renderApp(context.workspaces, wut, appPackageJson.package);
       })
     ),
 };
