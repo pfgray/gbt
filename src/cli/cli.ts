@@ -88,7 +88,7 @@ pipe(
           console.error("Error", JSON.stringify(err, null, 2));
         },
         Success: (v) => {
-          console.log("Done in 0.0s", v.value);
+          // console.log("Done in 0.0s", v.value);
         },
       })
     )
