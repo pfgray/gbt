@@ -15,6 +15,7 @@
         packages = [
           # bun.packages.${system}.v0_1_6
           pkgs.nodejs
+          pkgs.yarn
         ];
       };
       packages = {
