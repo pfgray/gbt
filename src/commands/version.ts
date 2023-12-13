@@ -1,7 +1,7 @@
-import { pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 
 export const VersionCommand: Command<"version", { pkg: string }> = {
@@ -11,18 +11,15 @@ export const VersionCommand: Command<"version", { pkg: string }> = {
     pipe(
       A.head(rawArgs),
       O.map((command) => ({ command })),
-      (a) => a,
-      O.bind("pkg", () => pipe(rawArgs, A.dropLeft(1), A.head)),
-      (a) => a,
-      T.fromOption,
-      T.chain(({ command, pkg }) =>
+      O.bind("pkg", () => pipe(rawArgs, A.drop(1), A.head)),
+      T.flatMap(({ command, pkg }) =>
         command === "version" && typeof pkg === "string"
           ? T.succeed(O.some({ _type: "version" as const, pkg }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       pipe(
         context.workspaces,
         A.findFirst((p) => p.package.name === args.pkg),

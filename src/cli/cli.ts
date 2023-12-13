@@ -1,31 +1,23 @@
 #!/usr/bin/env node
-import * as A from "@effect-ts/core/Array";
-import * as NEA from "@effect-ts/core/NonEmptyArray";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
-import { fromOption } from "@effect-ts/core/Effect";
-import { literal, pipe } from "@effect-ts/core/Function";
-import { render } from "ink";
-import * as React from "react";
+import * as T from "effect/Effect";
+import { pipe } from "effect/Function";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
 import { makeMatchers } from "ts-adt/MakeADT";
-import { PackageJson } from "../core/PackageJson";
-import { mkPackagesState } from "../core/packagesState";
-import { initialize } from "../core/intialize";
-import { PackageList } from "./PackageList";
-import { hideBin } from "yargs/helpers";
-import { ADT } from "ts-adt";
-import { BuildCommand } from "../commands/build";
-import { TreeCommand } from "../commands/tree";
-import { StartCommand } from "../commands/start";
 import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+import { Command } from "../commands/Command";
+import { BuildCommand } from "../commands/build";
+import { DetectCyclesCommand } from "../commands/detectCycles";
+import { FindCommand } from "../commands/find";
 import { ListCommand } from "../commands/list";
 import { PackageDirsCommand } from "../commands/packageDirs";
-import { VersionCommand } from "../commands/version";
-import { Command } from "../commands/Command";
+import { StartCommand } from "../commands/start";
 import { StatsCommand } from "../commands/stats";
-import { FindCommand } from "../commands/find";
+import { TreeCommand } from "../commands/tree";
 import { AppWithDeps } from "../core/AppWithDeps";
-import { DetectCyclesCommand } from "../commands/detectCycles";
+import { PackageJson } from "../core/PackageJson";
+import { initialize } from "../core/intialize";
 
 const [matchTag, matchTagP] = makeMatchers("_tag");
 
@@ -44,11 +36,9 @@ const Commands = [
 const handleCommand =
   (
     context: {
-      rootProject: {
-        root: PackageJson;
-      };
+      rootProject: PackageJson;
     } & {
-      workspaces: A.Array<AppWithDeps>;
+      workspaces: ReadonlyArray<AppWithDeps>;
     },
     argv: Record<string, unknown>,
     rawArgs: (string | number)[]
@@ -56,13 +46,16 @@ const handleCommand =
   <K extends string, T extends object>(c: Command<K, T>) =>
     pipe(
       c.parseArgs(argv, rawArgs),
-      T.chain((args) =>
+      T.flatMap((args) =>
         pipe(
           args,
-          O.fold(() => T.succeed({}), c.executeCommand(context))
+          O.match({
+            onNone: () => T.succeed({}),
+            onSome: c.executeCommand(context),
+          })
         )
       ),
-      T.refineOrDie((e) =>
+      T.mapError((e) =>
         O.some({
           message: `error running command ${c.name}`,
           cause: e,
@@ -72,7 +65,7 @@ const handleCommand =
 
 pipe(
   initialize,
-  T.chain((context) => {
+  T.flatMap((context) => {
     const yargParsedArgs = pipe(
       Commands,
       A.reduce(yargs(hideBin(process.argv)), (y, c) => c.addCommand(y))
@@ -88,7 +81,7 @@ pipe(
     );
   }),
   (e) =>
-    T.run(
+    T.runCallback(
       e,
       matchTag({
         Failure: (err) => {
@@ -102,23 +95,22 @@ pipe(
 );
 
 const printCircular = (deps: readonly PackageJson[]): string => {
-  const depsWithoutRecursive = pipe(deps, A.takeLeft(deps.length - 1));
+  const depsWithoutRecursive = pipe(deps, A.take(deps.length - 1));
   return pipe(
     deps,
     A.reverse,
-    NEA.fromArray,
-    O.map(NEA.head),
+    A.head,
     O.map((h) => ({ recursiveDep: h })),
     O.bind("rIndex", ({ recursiveDep }) =>
       pipe(
         depsWithoutRecursive,
-        A.findIndex((d) => d.name === recursiveDep.name)
+        A.findFirstIndex((d) => d.name === recursiveDep.name)
       )
     ),
     O.map(({ recursiveDep, rIndex }) => {
       const [before, after] = pipe(deps, A.splitAt(rIndex));
 
-      const afterWithoutRecursive = pipe(after, A.takeLeft(after.length - 1));
+      const afterWithoutRecursive = pipe(after, A.take(after.length - 1));
 
       const beforeStrs = before.map((p) => `   ${p.name}`).join("\n    │\n");
 

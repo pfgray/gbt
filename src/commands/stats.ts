@@ -1,10 +1,10 @@
-import { pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { packageJsonEqual } from "../core/PackageJson";
-import { Ordering } from "@effect-ts/core/Ordering";
+import { Ordering } from "effect/Ordering";
 import {
   AppWithDeps,
   appWithDepsDepRatioOrdering,
@@ -19,15 +19,14 @@ export const StatsCommand: Command<"stats", {}> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "stats"
           ? T.succeed(O.some({ _type: "stats" as const }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       context.workspaces.forEach((w) => {
         console.log(`${w.package.name}:`);
         console.log(`  ${w.localDeps.length} local dependencies`);
@@ -37,15 +36,15 @@ export const StatsCommand: Command<"stats", {}> = {
       const formative = pipe(
         context.workspaces,
         A.sort(appWithDepsFormativeOrdering),
-        A.takeLeft(5)
+        A.take(5)
       );
 
       const painful = pipe(
         context.workspaces,
         A.sort(appWithDepsTotalDepsOrdering),
-        A.takeLeft(30),
+        A.take(30),
         A.sort(appWithDepsDepRatioOrdering),
-        A.takeLeft(5)
+        A.take(5)
       );
 
       console.log("Most formative packages:");

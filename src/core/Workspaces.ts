@@ -1,20 +1,18 @@
-import * as t from "io-ts";
+import * as S from "@effect/schema/Schema";
 
-export const WorkspacesC = t.union([
-  t.array(t.string),
-  t.intersection([
-    t.type({
-      packages: t.array(t.string),
-    }),
-    t.partial({
-      nohoist: t.array(t.string),
-    }),
-  ]),
-]);
+export const WorkspacesC = S.union(
+  S.array(S.string),
+  S.struct({
+    packages: S.array(S.string),
+    nohoist: S.optional(S.array(S.string)),
+  })
+);
 
-export type WorkspacesT = t.TypeOf<typeof WorkspacesC>;
+export type WorkspacesT = S.Schema.To<typeof WorkspacesC>;
 
-export const workspaceGlobs = (workspaces: WorkspacesT): Array<string> =>
-  Array.isArray(workspaces)
-    ? workspaces
-    : [...workspaces.packages, ...(workspaces.nohoist || [])];
+export const workspaceGlobs = (
+  workspaces: WorkspacesT
+): ReadonlyArray<string> =>
+  "packages" in workspaces
+    ? [...workspaces.packages, ...(workspaces.nohoist || [])]
+    : workspaces;

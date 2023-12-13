@@ -1,14 +1,13 @@
-import { literal, pipe } from "@effect-ts/core/Function";
+import { pipe } from "effect/Function";
 
-import * as O from "@effect-ts/core/Option";
-import * as A from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { FS } from "../system/FS";
 import path from "path";
 import { PackageJson } from "../core/PackageJson";
 import { exec } from "child_process";
-import { onLeft } from "@effect-ts/core/Effect";
 
 const tap =
   (...msg: unknown[]): (<T>(t: T) => T) =>
@@ -31,9 +30,9 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
       }),
   parseArgs: (argv, rawArgs) =>
     pipe(
-      A.head(rawArgs),
-      T.fromOption,
-      T.chain((command) =>
+      rawArgs,
+      A.head,
+      T.flatMap((command) =>
         command === "tree"
           ? T.succeed(
               O.some({
@@ -45,13 +44,13 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
                 ),
               })
             )
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
     pipe(
       FS.mkdir(path.join(process.cwd(), "report")),
-      T.chain(() => {
+      T.flatMap(() => {
         const graph = pipe(context.workspaces, generateDotGraph(args.focus));
         console.log(graph);
         return T.zip(
@@ -62,7 +61,7 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
         )(
           pipe(
             renderDotGraphSvg(graph),
-            T.chain((svg) =>
+            T.flatMap((svg) =>
               FS.writeFile(
                 path.join(process.cwd(), "report", "workspaces.svg"),
                 svg
@@ -77,25 +76,24 @@ export const TreeCommand: Command<"tree", { focus: O.Option<string> }> = {
 const generateDotGraph =
   (focus: O.Option<string>) =>
   (
-    workspaces: A.Array<{
+    workspaces: ReadonlyArray<{
       dir: string;
       package: PackageJson;
-      localDeps: A.Array<PackageJson>;
+      localDeps: ReadonlyArray<PackageJson>;
     }>
   ): string =>
     pipe(
       workspaces,
-      A.map((workspace) => ({ workspace })),
-      A.bind("localDep", ({ workspace }) => workspace.localDeps),
+      workspacesWithLocalDeps,
       A.filter(({ workspace, localDep }) =>
         pipe(
           focus,
-          O.fold(
-            () => true,
-            (focusedPackage) =>
+          O.match({
+            onNone: () => true,
+            onSome: (focusedPackage) =>
               workspace.package.name === focusedPackage ||
-              localDep.name === focusedPackage
-          )
+              localDep.name === focusedPackage,
+          })
         )
       ),
       A.map(
@@ -120,17 +118,36 @@ const generateDotGraph =
        \n ${lines} \n}`
     );
 
-const plantUmlGraph = (
-  workspaces: A.Array<{
+const workspacesWithLocalDeps = (
+  workspaces: ReadonlyArray<{
     dir: string;
     package: PackageJson;
-    localDeps: A.Array<PackageJson>;
+    localDeps: ReadonlyArray<PackageJson>;
   }>
-): A.Array<string> =>
+) =>
   pipe(
     workspaces,
-    A.map((workspace) => ({ workspace })),
-    A.bind("localDep", ({ workspace }) => workspace.localDeps),
+    A.flatMap((workspace) =>
+      pipe(
+        workspace.localDeps,
+        A.map((localDep) => ({
+          workspace,
+          localDep,
+        }))
+      )
+    )
+  );
+
+const plantUmlGraph = (
+  workspaces: ReadonlyArray<{
+    dir: string;
+    package: PackageJson;
+    localDeps: ReadonlyArray<PackageJson>;
+  }>
+): ReadonlyArray<string> =>
+  pipe(
+    workspaces,
+    workspacesWithLocalDeps,
     A.map(
       ({ workspace, localDep }) =>
         `(${workspace.package.name}) --> (${localDep.name})`
@@ -138,23 +155,23 @@ const plantUmlGraph = (
   );
 
 export const renderDotGraphSvg = (graph: string) =>
-  T.effectAsync<
-    unknown,
+  T.async<
+    never,
     { _tag: "GraphvizError"; error?: unknown; stderr?: unknown },
     string
   >((cb) => {
     exec(`echo '${graph}' | dot -Tsvg`, (error, stdout, stderr) => {
       if (error) {
-        cb(T.fail({ _tag: literal("GraphvizError"), error }));
+        cb(T.fail({ _tag: "GraphvizError" as const, error }));
       } else if (stderr) {
-        cb(T.fail({ _tag: literal("GraphvizError"), stderr: stderr }));
+        cb(T.fail({ _tag: "GraphvizError" as const, stderr: stderr }));
       } else {
         cb(T.succeed(stdout));
       }
     });
   });
 
-// T.effectTotal(() => {});
+// T.sync(() => {});
 // T.effectAsync<unknown, { _tag: "GraphvizError"; graph: string }, string>(
 //   (cb) => {
 //     graphviz
@@ -163,7 +180,7 @@ export const renderDotGraphSvg = (graph: string) =>
 //         cb(T.succeed(svg));
 //       })
 //       .catch(() => {
-//         cb(T.fail({ _tag: literal("GraphvizError"), graph }));
+//         cb(T.fail({ _tag: "GraphvizError"), graph }) as const;
 //       });
 //   }
 // );

@@ -1,42 +1,35 @@
-import { literal, pipe } from "@effect-ts/core/Function";
-import { Equal } from "@effect-ts/core/Equal";
-import * as t from "io-ts";
-import * as T from "@effect-ts/core/Effect";
-import * as E from "fp-ts/lib/Either";
-import reporter from "io-ts-reporters";
+import { pipe } from "effect/Function";
+import { Equal } from "effect/Equal";
+import * as S from "@effect/schema/Schema";
+import * as T from "effect/Effect";
+import * as E from "effect/Either";
+import * as TreeFormatter from "@effect/schema/TreeFormatter";
 import { WorkspacesC } from "./Workspaces";
 
-export const PackageJsonC = t.intersection([
-  t.type({
-    name: t.string,
-  }),
-  t.partial({
-    version: t.string,
-    dependencies: t.record(t.string, t.string),
-    devDependencies: t.record(t.string, t.string),
-    peerDependencies: t.record(t.string, t.string),
-    workspaces: WorkspacesC,
-    scripts: t.record(t.string, t.string),
-    src: t.string,
-  }),
-]);
+export const PackageJsonC = S.struct({
+  name: S.string,
+  version: S.optional(S.string),
+  dependencies: S.optional(S.record(S.string, S.string)),
+  devDependencies: S.optional(S.record(S.string, S.string)),
+  peerDependencies: S.optional(S.record(S.string, S.string)),
+  workspaces: S.optional(WorkspacesC),
+  scripts: S.optional(S.record(S.string, S.string)),
+  src: S.optional(S.string),
+})
 
-export type PackageJsonT = t.TypeOf<typeof PackageJsonC>;
+export type PackageJsonT = S.Schema.To<typeof PackageJsonC>;
 export interface PackageJson extends PackageJsonT {}
 
-export const packageJsonEqual: Equal<PackageJson> = {
-  equals: (a) => (b) => a.name === b.name,
-};
+export const packageJsonEqual =
+  (a: PackageJson, b: PackageJson) =>
+    a.name === b.name
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
-    T.fromEither<t.Errors, PackageJson>(() =>
-      PackageJsonC.decode(JSON.parse(contents))
-    ),
+    S.parse(PackageJsonC)(JSON.parse(contents), {onExcessProperty: 'ignore'}),
     T.mapError((errs) => ({
-      _tag: literal("ParsePackageJsonError"),
-      //errors: errs,
-      parsedError: reporter.report(E.left(errs)),
+      _tag: "ParsePackageJsonError" as const,
+      parsedError: TreeFormatter.formatErrors(errs.errors),
       packageJsonPath: packagePath,
     }))
   );

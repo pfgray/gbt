@@ -1,25 +1,27 @@
 import * as React from "react";
 import { PackageJson } from "../core/PackageJson";
 import { Text, useInput, useApp, Box, Spacer } from "ink";
-import { pipe } from "@effect-ts/core/Function";
-import { killedL, mkPackagesState } from "../core/packagesState";
+import { pipe } from "effect/Function";
 import Gradient from "ink-gradient";
-import * as T from "@effect-ts/core/Effect";
+import * as T from "effect/Effect";
 
 import Divider from "ink-divider";
-import { toGradient, StdoutConsoleEnv } from "./StdoutConsoleEnv";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
 
 import Spinner from "ink-spinner";
-import { ChokidarWatchEnv } from "../system/WatchEnv";
+import { ChokidarWatch } from "../system/watch/ChokidarWatch";
+import { StdoutReporter } from "../core/console/StdoutReporter";
+import { mkPackagesState } from "../core/packagesState/packagesStateAtom";
+import { setKilled } from "../core/packagesState/packagesStateModifiers";
+import { toGradient } from "../core/console/gradients";
 
 type PackageListProps = {
   workspaces: Array<{
     package: PackageJson;
-    localDeps: Array<PackageJson>;
+    localDeps: ReadonlyArray<PackageJson>;
   }>;
   rootApp: PackageJson;
-  packagesState: ReturnType<typeof mkPackagesState>;
+  packagesState: T.Effect.Success<ReturnType<typeof mkPackagesState>>;
   exit: () => void;
 };
 
@@ -36,31 +38,29 @@ export const PackageList = (props: PackageListProps) => {
   React.useEffect(() => {
     pipe(
       appStateA.startApp(rootApp),
-      T.chain(() =>
-        T.effectAsync((cb) => {
-          appStateA.atom.subscribe({
-            next: () => {
-              if (appStateA.atom.get().killed) {
-                cb(T.succeed(0));
-              }
-            },
+      T.tap(() =>
+        T.async((cb) => {
+          appStateA.atom.subscribe(() => {
+            if (appStateA.atom.get().killed) {
+              cb(T.succeed(0));
+            }
           });
           return T.succeed(0);
         })
       ),
-      T.provide(StdoutConsoleEnv),
-      T.provide(ChokidarWatchEnv),
-      T.run
+      T.provide(StdoutReporter),
+      T.provide(ChokidarWatch),
+      T.runPromise
     );
   }, []);
 
   React.useEffect(() => {
-    const subscription = appStateA.atom.subscribe({
-      next: (a) => setPackagesState(appStateA.atom.get()),
-    });
+    const unsubscribe = appStateA.atom.subscribe((a) =>
+      setPackagesState(appStateA.atom.get())
+    );
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, [appStateA]);
 
@@ -72,9 +72,9 @@ export const PackageList = (props: PackageListProps) => {
       pipe(
         appStateA.atom.get().workspaces.map((a) => a.app.package),
         T.forEach(appStateA.killApp),
-        T.run
+        T.runPromise
       );
-      appStateA.atom.modify(killedL.modify(() => true));
+      appStateA.atom.modify(setKilled(true));
       props.exit();
     }
   });

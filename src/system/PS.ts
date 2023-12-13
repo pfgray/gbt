@@ -1,29 +1,37 @@
-import * as T from "@effect-ts/core/Effect";
-import { pipe } from "@effect-ts/core/Function";
+import * as T from "effect/Effect";
+import { pipe } from "effect/Function";
 import { exec, spawn, ExecException } from "child_process";
-import { ConsoleEnv } from "../core/ConsoleEnv";
 
 import kill from "tree-kill";
+import { Reporter } from "../core/console/Reporter";
+import { ReporterService } from "../core/console/Reporter";
+
+export type ProcessError = {
+  _tag: "process-error";
+  code: number;
+};
+
+export const processError = (code: number): ProcessError => ({
+  _tag: "process-error",
+  code,
+});
 
 export const PS = {
   spawn: (context: string) => (command: string) => (args: string[]) =>
     pipe(
-      T.environment<ConsoleEnv>(),
-      T.tap((t) =>
-        T.effectTotal(() => {
-          t.console.log(context)(command + " " + args.join(" "));
-        })
-      ),
-      T.chain(({ console }) =>
-        T.effectAsyncInterrupt<unknown, number, 0>((cb) => {
+      Reporter.log(context)(command + " " + args.join(" ")),
+      T.bindTo("intro"),
+      T.bind("console", () => ReporterService),
+      T.flatMap(({ console }) =>
+        T.async<never, number, 0>((cb) => {
           const child = spawn(command, args);
 
           child.stdout.on("data", (data) => {
-            console.log(context)(data.toString());
+            pipe(console.log(context)(data.toString()), T.runSync);
           });
 
           child.stderr.on("data", (data) => {
-            console.error(context)(data.toString());
+            pipe(console.error(context)(data.toString()), T.runSync);
           });
 
           child.on("close", (code) => {
@@ -33,14 +41,15 @@ export const PS = {
               cb(T.fail(code));
             }
           });
-          return T.effectTotal(() => {
+          return T.sync(() => {
             kill(child.pid);
           });
         })
-      )
+      ),
+      T.mapError((errCode) => processError(errCode))
     ),
   exec: (command: string) =>
-    T.effectAsync<unknown, ExecException | string, string>((cb) => {
+    T.async<never, ExecException | string, string>((cb) => {
       exec(command, (err, stdout, stderr) => {
         if (err) {
           cb(T.fail(err));

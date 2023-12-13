@@ -1,16 +1,14 @@
-import { flow, pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
-import { Command } from "./Command";
+import { Equivalence, Order } from "effect";
+import * as T from "effect/Effect";
+import { flow, pipe } from "effect/Function";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import path from "path";
 import { AppWithDeps, findPackage } from "../core/AppWithDeps";
 import { PackageJson, packageJsonEqual } from "../core/PackageJson";
-import { fromCompare, ordString } from "@effect-ts/core/Ord";
-import { Equal } from "@effect-ts/system/Equal";
-import { eqString } from "@effect-ts/core/Equal";
-import { renderDotGraphSvg } from "./tree";
 import { FS } from "../system/FS";
-import path from "path";
+import { Command } from "./Command";
+import { renderDotGraphSvg } from "./tree";
 
 export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
   name: "detect-cycles",
@@ -19,11 +17,10 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "detect-cycles"
           ? T.succeed(O.some({ _type: "detect-cycles" as const }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
@@ -31,13 +28,12 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
     //
     pipe(
       context.workspaces,
-      A.chain(detectCycles(context.workspaces)),
-      A.uniq(cycleEq),
-
+      A.flatMap(detectCycles(context.workspaces)),
+      A.dedupeWith(cycleEq),
       A.map(renderGraphCycle),
       T.succeed,
       T.tap((lines) =>
-        T.effectTotal(() => {
+        T.sync(() => {
           console.log(lines.join("\n"));
         })
       ),
@@ -45,8 +41,8 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
       T.tap((dot) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.dot"), dot)
       ),
-      T.chain(renderDotGraphSvg),
-      T.chain((svg) =>
+      T.flatMap(renderDotGraphSvg),
+      T.flatMap((svg) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.svg"), svg)
       )
     ),
@@ -54,15 +50,25 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
 
 type Cycle = readonly PackageJson[];
 
-const cycleEq: Equal<Cycle> = {
-  equals: (a) => (b) => {
-    const sort = flow(
-      A.map((p: PackageJson) => p.name),
-      A.sort(ordString)
-    );
-    return A.getEqual(eqString).equals(sort(a))(sort(b));
-  },
-};
+const arraysEqual =
+  <A>(compare: (a: A, b: A) => boolean) =>
+  (a: ReadonlyArray<A>, b: ReadonlyArray<A>) => {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+
+    for (var i = 0; i < a.length; ++i) {
+      if (!compare(a[i], b[i])) return false;
+    }
+    return true;
+  };
+
+const cycleEq: Equivalence.Equivalence<Cycle> = Equivalence.make((a, b) => {
+  const sort = flow(
+    A.map((p: PackageJson) => p.name),
+    A.sort(Order.string)
+  );
+  return A.getEquivalence(Equivalence.string)(sort(a), sort(b));
+});
 
 const detectCycles =
   (workspaces: readonly AppWithDeps[]) => (workspace: AppWithDeps) => {
@@ -71,18 +77,24 @@ const detectCycles =
       (workspace: AppWithDeps): readonly Cycle[] =>
         workspace.localDeps.length === 0
           ? []
-          : pipe(seenPackages, A.elem(packageJsonEqual)(workspace.package))
+          : pipe(
+              seenPackages,
+              A.containsWith(packageJsonEqual)(workspace.package)
+            )
           ? [formatCycle(seenPackages, workspace.package)]
           : pipe(
               workspace.localDeps,
-              A.chain((p) =>
+              A.flatMap((p) =>
                 pipe(
                   p,
                   findPackage(workspaces),
-                  O.fold(
-                    () => [],
-                    detectCyclesInner([...seenPackages, workspace.package])
-                  )
+                  O.match({
+                    onNone: A.empty,
+                    onSome: detectCyclesInner([
+                      ...seenPackages,
+                      workspace.package,
+                    ]),
+                  })
                 )
               )
             );
@@ -90,19 +102,19 @@ const detectCycles =
   };
 
 const formatCycle = (
-  seenPackages: A.Array<PackageJson>,
+  seenPackages: ReadonlyArray<PackageJson>,
   pkg: PackageJson
 ): Cycle =>
   pipe(
     seenPackages,
-    A.findIndex((p) => p.name === pkg.name),
-    O.fold(
-      () => [],
-      (indexOfLoopedPkg) => {
+    A.findFirstIndex((p) => p.name === pkg.name),
+    O.match({
+      onNone: A.empty,
+      onSome: (indexOfLoopedPkg) => {
         const subLoop = pipe(seenPackages, A.splitAt(indexOfLoopedPkg))[1];
         return [...subLoop, pkg];
-      }
-    )
+      },
+    })
   );
 
 const renderGraphCycle = (cycle: Cycle): string =>

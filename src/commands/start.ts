@@ -1,15 +1,16 @@
-import { literal, pipe } from "@effect-ts/core/Function";
+import { pipe } from "effect/Function";
 
-import * as O from "@effect-ts/core/Option";
-import * as A from "@effect-ts/core/Array";
-import * as T from "@effect-ts/core/Effect";
+import * as O from "effect/Option";
+import * as A from "effect/ReadonlyArray";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
 import { render } from "ink";
 import React from "react";
 import { PackageList } from "../cli/PackageList";
 import { PackageJson } from "../core/PackageJson";
-import { mkPackagesState } from "../core/packagesState";
 import { traceN } from "../core/debug";
+import { mkPackagesState } from "../core/packagesState/packagesStateAtom";
+import { mkFileLogEnv } from "../core/logger/FileLogger";
 
 export const StartCommand: Command<
   "start",
@@ -30,8 +31,7 @@ export const StartCommand: Command<
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "start"
           ? T.succeed({ _type: "start" as const })
           : T.fail({})
@@ -40,40 +40,38 @@ export const StartCommand: Command<
         pipe(
           argv.package,
           O.fromNullable,
-          O.chain((u) => (typeof u === "string" ? O.some(u) : O.none)),
-          T.fromOption
+          O.flatMap((u) => (typeof u === "string" ? O.some(u) : O.none()))
         )
       ),
       T.bind("watchDeps", () =>
         pipe(
           argv.watchDependencies,
           O.fromNullable,
-          O.chain((u) => (typeof u === "boolean" ? O.some(u) : O.none)),
-          T.fromOption
+          O.flatMap((u) => (typeof u === "boolean" ? O.some(u) : O.none()))
         )
       ),
       T.option
     ),
   executeCommand: (context) => (args) =>
     pipe(
-      T.do,
+      T.Do,
       T.bind("appPackageJson", (a) =>
         pipe(
           context.workspaces,
           A.findFirst((w) => w.package.name === args.package),
-          T.fromOption,
           T.mapError(() => ({
-            _tag: literal("InitialAppNotFound"),
+            _tag: "InitialAppNotFound" as const,
             appName: args.package,
           }))
         )
       ),
       T.bind("reactApp", ({ appPackageJson }) => {
-        return renderApp(
-          context.workspaces,
+        const wut = pipe(
           mkPackagesState(context.workspaces, appPackageJson),
-          appPackageJson.package
+          T.provide(mkFileLogEnv("./gbt.log")),
+          T.runSync
         );
+        return renderApp(context.workspaces, wut, appPackageJson.package);
       })
     ),
 };
@@ -83,10 +81,10 @@ const renderApp = (
     package: PackageJson;
     localDeps: ReadonlyArray<PackageJson>;
   }>,
-  appState: ReturnType<typeof mkPackagesState>,
+  appState: T.Effect.Success<ReturnType<typeof mkPackagesState>>,
   rootApp: PackageJson
 ) =>
-  T.effectAsync<unknown, never, number>((cb) => {
+  T.async<never, never, number>((cb) => {
     const exit = () => cb(T.succeed(0));
     render(
       React.createElement(PackageList, {

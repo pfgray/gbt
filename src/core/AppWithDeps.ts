@@ -1,19 +1,10 @@
-import { identity, literal, pipe } from "@effect-ts/core/Function";
-import * as O from "@effect-ts/core/Option";
-import * as E from "@effect-ts/core/Either";
-import * as A from "@effect-ts/core/Array";
+import { identity, pipe } from "effect/Function";
+import * as O from "effect/Option";
+import * as E from "effect/Either";
+import * as T from "effect/Effect";
+import * as A from "effect/ReadonlyArray";
 import { PackageJson, packageJsonEqual } from "./PackageJson";
-import {
-  Ord,
-  fromCompare,
-  ordNumber,
-  contramap,
-  getAssociative,
-  dual,
-  ordString,
-  OrdURI,
-} from "@effect-ts/core/Ord";
-import { Equal } from "@effect-ts/system/Equal";
+import { Effect, Either, Order } from "effect";
 
 export type AppWithDeps = {
   dir: string;
@@ -23,7 +14,7 @@ export type AppWithDeps = {
 };
 
 const circularDep = (context: ReadonlyArray<PackageJson>) => ({
-  _tag: literal("CircularDepFound"),
+  _tag: "CircularDepFound" as const,
   context,
 });
 
@@ -38,35 +29,38 @@ export const findDeps =
     return pipe(
       parentContext,
       A.findFirst((a) => a.name === p.package.name),
-      O.fold(
-        () =>
-          pipe(p.localDeps, A.filterMap(findPackage(allPackages)), (deps) =>
-            pipe(
+      O.match({
+        onNone: () =>
+          pipe(p.localDeps, A.filterMap(findPackage(allPackages)), (deps) => {
+            return pipe(
               deps,
               A.map(findDeps(allPackages, parentContext.concat(p.package))),
-              A.sequence(E.Applicative),
-              E.map(A.chain(identity)),
+              Effect.allWith(),
+              T.either,
+              T.runSync,
+              E.map(A.flatMap(identity)),
               E.map((ds) => [...deps, ...ds])
-            )
-          ),
-        () => E.left(circularDep([...parentContext, p.package]))
-      )
+            );
+          }),
+        onSome: () => E.left(circularDep([...parentContext, p.package])),
+      })
     );
   };
 
 export const findParents =
   (
     allPackages: ReadonlyArray<AppWithDeps>,
-    childContext: ReadonlyArray<PackageJson>
+    childContext: ReadonlyArray<PackageJson>,
+    onlyDirectParents: boolean = false
   ) =>
   (
     p: AppWithDeps
-  ): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
+  ): E.Either<ReturnType<typeof circularDep>, ReadonlyArray<AppWithDeps>> => {
     return pipe(
       childContext,
       A.findFirst((a) => a.name === p.package.name),
-      O.fold(
-        () =>
+      O.match({
+        onNone: () =>
           pipe(
             allPackages,
             A.filter((a) =>
@@ -77,22 +71,31 @@ export const findParents =
               )
             ),
             (parents) =>
-              pipe(
-                parents,
-                A.map(findParents(allPackages, childContext.concat(p.package))),
-                A.sequence(E.Applicative),
-                E.map(A.chain(identity)),
-                E.map((ps) => [...parents, ...ps])
-              )
+              onlyDirectParents
+                ? Either.right(parents)
+                : pipe(
+                    parents,
+                    A.map(
+                      findParents(allPackages, childContext.concat(p.package))
+                    ),
+                    Either.all,
+                    Either.map(A.flatMap(identity)),
+                    Either.map((ps) => [...parents, ...ps])
+                  )
           ),
-        () => E.left(circularDep(childContext))
-      )
+        onSome: () => E.left(circularDep(childContext)),
+      })
     );
   };
 
+export const findDirectParents = (
+  allPackages: ReadonlyArray<AppWithDeps>,
+  childContext: ReadonlyArray<PackageJson>
+) => findParents(allPackages, childContext, true);
+
 export const findPackage =
   (allPackages: ReadonlyArray<AppWithDeps>) => (p: PackageJson) =>
-    findPackageByName(allPackages)(p.name)
+    findPackageByName(allPackages)(p.name);
 
 export const findPackageByName =
   (allPackages: ReadonlyArray<AppWithDeps>) => (name: string) =>
@@ -102,52 +105,36 @@ export const findPackageByName =
     );
 
 export const appWithDepsLocalDepsOrdering = pipe(
-  ordNumber,
-  contramap((a: AppWithDeps) => a.localDeps.length)
+  Order.number,
+  Order.mapInput((a: AppWithDeps) => a.localDeps.length)
 );
 export const appWithDepsLocalDependentsOrdering = pipe(
-  ordNumber,
-  contramap((a: AppWithDeps) => a.localDependents.length)
+  Order.number,
+  Order.mapInput((a: AppWithDeps) => a.localDependents.length)
 );
 
-export const appWithDepsFormativeOrdering =
-  getAssociative<AppWithDeps>().combine(appWithDepsLocalDepsOrdering)(
-    dual(appWithDepsLocalDependentsOrdering)
-  );
+export const appWithDepsFormativeOrdering = Order.combine(
+  appWithDepsLocalDepsOrdering
+)(Order.reverse(appWithDepsLocalDependentsOrdering));
 
 export const appWithDepsTotalDepsOrdering = pipe(
-  ordNumber,
-  contramap((a: AppWithDeps) => a.localDependents.length + a.localDeps.length),
-  dual
+  Order.number,
+  Order.mapInput(
+    (a: AppWithDeps) => a.localDependents.length + a.localDeps.length
+  ),
+  Order.reverse
 );
 
 export const appWithDepsDepRatioOrdering = pipe(
-  ordNumber,
-  contramap((a: AppWithDeps) =>
+  Order.number,
+  Order.mapInput((a: AppWithDeps) =>
     Math.abs(a.localDependents.length - a.localDeps.length)
   )
-  // dual
 );
 
-export const appWithDepsEqual: Equal<AppWithDeps> = {
-  equals: (a) => (b) => a.package.name === b.package.name,
-};
+export const appWithDepsEqual = (a: AppWithDeps, b: AppWithDeps) =>
+  a.package.name === b.package.name;
 
-export const appWithDepsPainfulOrdering = getAssociative<AppWithDeps>().combine(
+export const appWithDepsPainfulOrdering = Order.combine(
   appWithDepsDepRatioOrdering
 )(appWithDepsTotalDepsOrdering);
-
-// {
-//   compare: a => b =>
-// }
-
-// const ageOrd = Ord.contramap((a) => a.age)(Ord.ordNumber);
-// const nameOrd = Ord.contramap((a) => a.name)(Ord.ordString);
-
-// const user1 = { name: "a", age: 3 };
-// const user2 = { name: "b", age: 0 };
-// const user3 = { name: "c", age: 1 };
-// const user4 = { name: "c", age: 2 };
-
-// // A.sort(getAssociative().combine(ageOrd)(dual(nameOrd)))([user1, user2, user3, user4])
-// getAssociative().combine(ageOrd)(nameOrd);

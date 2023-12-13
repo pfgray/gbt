@@ -1,9 +1,9 @@
-import { literal, pipe } from "@effect-ts/core/Function";
-import * as A from "@effect-ts/core/Array";
-import * as O from "@effect-ts/core/Option";
-import * as T from "@effect-ts/core/Effect";
+import { pipe } from "effect/Function";
+import * as A from "effect/ReadonlyArray";
+import * as O from "effect/Option";
+import * as T from "effect/Effect";
 import { Command } from "./Command";
-import { gradientForStr } from "../cli/StdoutConsoleEnv";
+import { gradientForStr } from "../core/console/gradients";
 
 export const ListCommand: Command<"list", {}> = {
   name: "list",
@@ -12,21 +12,16 @@ export const ListCommand: Command<"list", {}> = {
   parseArgs: (argv, rawArgs) =>
     pipe(
       A.head(rawArgs),
-      T.fromOption,
-      T.chain((command) =>
+      T.flatMap((command) =>
         command === "list"
           ? T.succeed(O.some({ _type: "list" as const }))
-          : T.succeed(O.none)
+          : T.succeed(O.none())
       )
     ),
   executeCommand: (context) => (args) =>
-    T.effectTotal(() => {
+    T.sync(() => {
       context.workspaces.forEach((w) => {
-        console.log(
-          `${gradientForStr(w.package.name)(w.package.name)}:${
-            w.package.version
-          }`
-        );
+        console.log(`${gradientForStr(w.package.name)}:${w.package.version}`);
       });
     }),
 };
