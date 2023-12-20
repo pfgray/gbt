@@ -38,15 +38,35 @@ export const DetectCyclesCommand: Command<"detect-cycles", {}> = {
         })
       ),
       T.map(renderDigraph),
+      T.tap(() =>
+        pipe(
+          FS.readDir(path.join(process.cwd(), "report")),
+          T.catchTag("FileNotFound", () =>
+            FS.mkdir(path.join(process.cwd(), "report"))
+          )
+        )
+      ),
       T.tap((dot) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.dot"), dot)
       ),
       T.flatMap(renderDotGraphSvg),
       T.flatMap((svg) =>
         FS.writeFile(path.join(process.cwd(), "report", "cycles.svg"), svg)
-      )
+      ),
+      T.catchTags({
+        GraphvizCmdNotFound: () =>
+          logSync(
+            `Skipping SVG generation, as the "dot" command not found in path`
+          ),
+        NotDirectory: ({ path }) =>
+          logSync(
+            `Skipping SVG generation, as ${path} exists, but is not a directory`
+          ),
+      })
     ),
 };
+
+const logSync = (s: string) => T.sync(() => console.log(s));
 
 type Cycle = readonly PackageJson[];
 

@@ -12,6 +12,34 @@ const pathNotFound = (path: string) => ({
   path,
 });
 
+interface FileNotFound {
+  _tag: "FileNotFound";
+  path: string;
+}
+
+const fileNotFound = (path: string): FileNotFound => ({
+  _tag: "FileNotFound",
+  path,
+});
+
+interface NotDirectory {
+  _tag: "NotDirectory";
+  path: string;
+}
+const notDirectory = (path: string): NotDirectory => ({
+  _tag: "NotDirectory",
+  path,
+});
+
+interface ReadError {
+  _tag: "ReadError";
+  path: string;
+}
+const readError = (path: string): ReadError => ({
+  _tag: "ReadError",
+  path,
+});
+
 const readFile = (path: string) =>
   T.async<never, { _tag: "ReadError" | "PathNotFound"; path: string }, string>(
     (cb) =>
@@ -37,9 +65,17 @@ export const FS = {
       });
     }),
   readDir: (dir: string) =>
-    T.async<never, NodeJS.ErrnoException, string[]>((cb) =>
+    T.async<never, FileNotFound | NotDirectory | ReadError, string[]>((cb) =>
       fs.readdir(dir, "utf-8", (err, s) => {
-        err ? cb(T.fail(err)) : cb(T.succeed(s));
+        if (err && err.code === "ENOENT") {
+          cb(T.fail(fileNotFound(dir)));
+        } else if (err && err.code === "ENOTDIR") {
+          cb(T.fail(notDirectory(dir)));
+        } else if (err) {
+          cb(T.fail(readError(dir)));
+        } else {
+          cb(T.succeed(s));
+        }
       })
     ),
   lstatOp: (path: string) =>

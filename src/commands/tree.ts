@@ -154,15 +154,35 @@ const plantUmlGraph = (
     )
   );
 
+interface GraphVizError {
+  _tag: "GraphvizError";
+  error?: unknown;
+  stderr?: string;
+}
+
+const graphvizError = (error?: unknown, stderr?: string): GraphVizError => ({
+  _tag: "GraphvizError",
+  error,
+  stderr,
+});
+
+interface GraphvizCmdNotFound {
+  _tag: "GraphvizCmdNotFound";
+}
+
+const graphvizCmdNotFound: GraphvizCmdNotFound = {
+  _tag: "GraphvizCmdNotFound",
+};
+
 export const renderDotGraphSvg = (graph: string) =>
-  T.async<
-    never,
-    { _tag: "GraphvizError"; error?: unknown; stderr?: unknown },
-    string
-  >((cb) => {
+  T.async<never, GraphvizCmdNotFound | GraphVizError, string>((cb) => {
     exec(`echo '${graph}' | dot -Tsvg`, (error, stdout, stderr) => {
       if (error) {
-        cb(T.fail({ _tag: "GraphvizError" as const, error }));
+        if (error.code === 127) {
+          cb(T.fail(graphvizCmdNotFound));
+        } else {
+          cb(T.fail({ _tag: "GraphvizError" as const, error }));
+        }
       } else if (stderr) {
         cb(T.fail({ _tag: "GraphvizError" as const, stderr: stderr }));
       } else {
