@@ -33,6 +33,14 @@ export const StatsCommand: Command<"stats", {}> = {
         console.log(`  ${w.localDependents.length} local dependents`);
       });
 
+      const unused = pipe(
+        context.workspaces,
+        A.filter(
+          (app) =>
+            app.localDependents.length === 0 && app.localDeps.length === 0
+        )
+      );
+
       const formative = pipe(
         context.workspaces,
         A.sort(appWithDepsFormativeOrdering),
@@ -52,11 +60,14 @@ export const StatsCommand: Command<"stats", {}> = {
 
       console.log("Most painful packages:");
       painful.forEach(printWorkspaceDepCount);
+
+      console.log("Unused packages:");
+      unused.forEach(printWorkspaceDepCount);
     }),
 };
 
 const printWorkspaceDepCount = (w: AppWithDeps) => {
   console.log(
-    `  ${w.package.name} (Dependencies: ${w.localDeps.length}, Dependendents: ${w.localDependents.length})`
+    `  ${w.package.name} (Dependencies: ${w.localDeps.length}, Dependents: ${w.localDependents.length})`
   );
 };
