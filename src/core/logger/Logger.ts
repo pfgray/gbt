@@ -1,9 +1,4 @@
-import * as T from "effect/Effect";
-import { pipe } from "effect/Function";
-import * as fs from "fs";
-import { match } from "ts-adt";
-
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect } from "effect";
 
 export interface Logger {
   debug: (...msg: unknown[]) => void;
@@ -13,7 +8,10 @@ export interface Logger {
 }
 
 // Create a tag for the MeasuringCup service
-export const LoggerService = Context.Tag<Logger>();
+export class LoggerService extends Context.Tag("LoggerService")<
+  LoggerService,
+  Logger
+>() {}
 
 export const Logger = {
   debug: (...msg: unknown[]) =>

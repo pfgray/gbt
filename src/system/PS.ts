@@ -23,7 +23,7 @@ export const PS = {
       T.bindTo("intro"),
       T.bind("console", () => ReporterService),
       T.flatMap(({ console }) =>
-        T.async<never, number, 0>((cb) => {
+        T.async<0, number, never>((cb) => {
           const child = spawn(command, args);
 
           child.stdout.on("data", (data) => {
@@ -49,7 +49,7 @@ export const PS = {
       T.mapError((errCode) => processError(errCode))
     ),
   exec: (command: string) =>
-    T.async<never, ExecException | string, string>((cb) => {
+    T.async<string, ExecException | string, never>((cb) => {
       exec(command, (err, stdout, stderr) => {
         if (err) {
           cb(T.fail(err));

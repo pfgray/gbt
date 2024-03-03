@@ -3,13 +3,13 @@ import { Effect, ReadonlyArray, pipe } from "effect";
 type Atom<A> = {
   subscribe: (cb: (a: A) => void) => () => void;
   unsubscribe: (cb: (a: A) => void) => void;
-  modify: (...f: Array<(a: A) => A>) => Effect.Effect<never, never, void>;
+  modify: (...f: Array<(a: A) => A>) => Effect.Effect<void, never, never>;
   tapModify: <Z>(
     f: (z: Z) => (a: A) => A
-  ) => <R, E>(eff: Effect.Effect<R, E, Z>) => Effect.Effect<R, E, Z>;
+  ) => <R, E>(eff: Effect.Effect<Z, E, R>) => Effect.Effect<Z, E, R>;
   tapModifyL: <Z>(
     f: (z: Z) => ReadonlyArray<(a: A) => A>
-  ) => <R, E>(eff: Effect.Effect<R, E, Z>) => Effect.Effect<R, E, Z>;
+  ) => <R, E>(eff: Effect.Effect<Z, E, R>) => Effect.Effect<Z, E, R>;
   modifyNow: (...f: Array<(a: A) => A>) => void;
   get: () => A;
 };

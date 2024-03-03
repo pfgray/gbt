@@ -30,15 +30,11 @@ import {
   setAppWatchProcess,
 } from "./packagesStateModifiers";
 import { runScript } from "../scripts";
-import { Reporter } from "../console/Reporter";
+import { Reporter, ReporterService } from "../console/Reporter";
 import { tapSync } from "../lib/effectExtras";
 import * as path from "path";
 import { Watch } from "../../system/watch/Watch";
 import { StdoutReporter } from "../console/StdoutReporter";
-import { mkFileLogEnv } from "../logger/FileLogger";
-import { atom } from "frp-ts";
-import { NonEmptyReadonlyArray } from "effect/ReadonlyArray";
-import { trace } from "../debug";
 import { GbtContext } from "../../commands/Command";
 
 const renderPackages = (state: PackagesState) => {
@@ -113,7 +109,7 @@ export const mkPackagesState = (
       const runCommandInApp = <R, E>(
         p: PackageJson,
         command: string,
-        onComplete: T.Effect<R, E, unknown>
+        onComplete: T.Effect<unknown, E, R>
       ) => {
         return pipe(
           runScript(context, p)(command),
@@ -122,13 +118,14 @@ export const mkPackagesState = (
           T.forkDaemon,
           atom.tapModify((process) => {
             return setAppBuildProcess(p.name)(Option.some(process));
-          })
+          }),
+          (a) => a
         );
       };
 
       const buildPackage =
         (options: { buildRoot: boolean }) =>
-        (p: PackageJson): T.Effect<Reporter, never, unknown> => {
+        (p: PackageJson): T.Effect<unknown, never, ReporterService> => {
           // don't build if a dependency is building
           const depIsBuildingOrWaiting = pipe(
             findPackage(context.workspaces)(p),
@@ -198,6 +195,7 @@ export const mkPackagesState = (
                                 p.name !== rootApp.package.name
                             )
                           ),
+                          (a) => a,
                           T.flatMap(T.forEach(buildPackage(options))),
                           T.orElse(() => T.succeed(0))
                         )
@@ -205,11 +203,6 @@ export const mkPackagesState = (
                     )
                   )
                 ),
-                (a) => a,
-                T.mapError((err) => {
-                  console.log("err? ", err);
-                  return err;
-                }),
                 T.orElse(() => T.succeed(0))
               );
         };

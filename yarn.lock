@@ -322,11 +322,6 @@ fill-range@^7.0.1:
   dependencies:
     to-regex-range "^5.0.1"
 
-frp-ts@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/frp-ts/-/frp-ts-0.0.1.tgz#7c01a0ab9ef98169a019cb8001fa09982f9ec8e5"
-  integrity sha512-ryNqNx/+fXUsUsWNH9uBu3tgvcnB0tZKXHk0hqDG73r8/QmOYOGU8Xp5HEptkdEiLIO7GPBZ4GOA6ypoOHQzPA==
-
 fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/fs.realpath/-/fs.realpath-1.0.0.tgz#1504ad2523158caa40db4a2787cb01411994ea4f"

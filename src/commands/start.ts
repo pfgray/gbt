@@ -87,7 +87,7 @@ const renderApp = (
   appState: T.Effect.Success<ReturnType<typeof mkPackagesState>>,
   rootApp: PackageJson
 ) =>
-  T.async<never, never, number>((cb) => {
+  T.async<number, never, never>((cb) => {
     const exit = () => cb(T.succeed(0));
     render(
       React.createElement(PackageList, {

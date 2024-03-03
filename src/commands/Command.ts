@@ -16,8 +16,8 @@ export type Command<K extends string, T extends object> = {
   parseArgs: (
     argv: Record<string, unknown>,
     rawArgs: Array<string | number>
-  ) => T.Effect<never, unknown, O.Option<{ _type: K } & T>>;
+  ) => T.Effect<O.Option<{ _type: K } & T>, unknown, never>;
   executeCommand: (
     context: GbtContext
-  ) => (t: T) => T.Effect<never, unknown, unknown>;
+  ) => (t: T) => T.Effect<unknown, unknown, never>;
 };

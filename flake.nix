@@ -19,7 +19,8 @@
         ];
       };
       packages = {
-        gbt = builtins.trace (builtins.attrNames gbt.build) gbt.build;
+        gbt = gbt.build;
+        default = gbt.build;
       };
       apps.gbt = flake-utils.lib.mkApp {
         drv = gbt.build;

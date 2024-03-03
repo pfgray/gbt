@@ -26,10 +26,12 @@ export const packageJsonEqual = (a: PackageJson, b: PackageJson) =>
 
 export const parsePackageJson = (packagePath: string) => (contents: string) =>
   pipe(
-    S.parse(PackageJsonC)(JSON.parse(contents), { onExcessProperty: "ignore" }),
+    S.decode(PackageJsonC)(JSON.parse(contents), {
+      onExcessProperty: "ignore",
+    }),
     T.mapError((errs) => ({
       _tag: "ParsePackageJsonError" as const,
-      parsedError: TreeFormatter.formatErrors(errs.errors),
+      parsedError: TreeFormatter.formatError(errs),
       packageJsonPath: packagePath,
     }))
   );
