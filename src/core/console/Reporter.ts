@@ -1,14 +1,16 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect } from "effect";
 
 export interface Reporter {
-  log: (context?: string) => (msg: string) => Effect.Effect<never, never, void>;
+  log: (context?: string) => (msg: string) => Effect.Effect<void, never, never>;
   error: (
     context?: string
-  ) => (msg: string) => Effect.Effect<never, never, void>;
+  ) => (msg: string) => Effect.Effect<void, never, never>;
 }
 
-// Create a tag for the MeasuringCup service
-export const ReporterService = Context.Tag<Reporter>();
+export class ReporterService extends Context.Tag("ReporterService")<
+  ReporterService,
+  Reporter
+>() {}
 
 export const Reporter = {
   log: (context?: string) => (msg: string) =>

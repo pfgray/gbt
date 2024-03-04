@@ -25,7 +25,7 @@ export const findDeps =
   ) =>
   (
     p: AppWithDeps
-  ): E.Either<ReturnType<typeof circularDep>, Array<AppWithDeps>> => {
+  ): E.Either<Array<AppWithDeps>, ReturnType<typeof circularDep>> => {
     return pipe(
       parentContext,
       A.findFirst((a) => a.name === p.package.name),
@@ -55,7 +55,7 @@ export const findParents =
   ) =>
   (
     p: AppWithDeps
-  ): E.Either<ReturnType<typeof circularDep>, ReadonlyArray<AppWithDeps>> => {
+  ): E.Either<ReadonlyArray<AppWithDeps>, ReturnType<typeof circularDep>> => {
     return pipe(
       childContext,
       A.findFirst((a) => a.name === p.package.name),

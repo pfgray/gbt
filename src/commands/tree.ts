@@ -175,7 +175,7 @@ const graphvizCmdNotFound: GraphvizCmdNotFound = {
 };
 
 export const renderDotGraphSvg = (graph: string) =>
-  T.async<never, GraphvizCmdNotFound | GraphVizError, string>((cb) => {
+  T.async<string, GraphvizCmdNotFound | GraphVizError, never>((cb) => {
     exec(`echo '${graph}' | dot -Tsvg`, (error, stdout, stderr) => {
       if (error) {
         if (error.code === 127) {

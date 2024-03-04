@@ -2,7 +2,7 @@
   description = "A Graph Build Tool";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -19,7 +19,8 @@
         ];
       };
       packages = {
-        gbt = builtins.trace (builtins.attrNames gbt.build) gbt.build;
+        gbt = gbt.build;
+        default = gbt.build;
       };
       apps.gbt = flake-utils.lib.mkApp {
         drv = gbt.build;

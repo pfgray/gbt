@@ -81,17 +81,19 @@ pipe(
     );
   }),
   (e) =>
-    T.runCallback(
-      e,
-      matchTag({
-        Failure: (err) => {
-          console.error("Error", JSON.stringify(err, null, 2));
-        },
-        Success: (v) => {
-          // console.log("Done in 0.0s", v.value);
-        },
-      })
-    )
+    T.runPromiseExit(e).then((e) => {
+      pipe(
+        e,
+        matchTag({
+          Failure: (err) => {
+            console.error("Error", JSON.stringify(err, null, 2));
+          },
+          Success: (v) => {
+            // console.log("Done in 0.0s", v.value);
+          },
+        })
+      );
+    })
 );
 
 const printCircular = (deps: readonly PackageJson[]): string => {
